@@ -34,7 +34,10 @@ Built in two phases because it ships before AIED-01:
 - Survive configuration changes (rotation) — store in a `ViewModel`; cap stack depth (e.g. 20).
 
 **Phase 2 (when AIED-01 lands):**
-- Push a snapshot **before each AI rewrite**, so undo/redo steps through AI edits exactly as in the decision-doc flow.
+- Capture a snapshot **before** an AI rewrite and **after** it is applied, so each AI change is its own
+  undo step and is visible via undo/redo. Use `NoteEditorFragment.captureFieldSnapshot(ord)` — a manual
+  trigger that records the current field content immediately, bypassing the typing debounce. (Added in
+  Phase 1 and ready for the AI panel to call.)
 
 **Out:** integrating with Android IME keystroke-level undo or libanki collection undo (those already exist separately).
 

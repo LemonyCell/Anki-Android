@@ -21,8 +21,9 @@ Priorities map the decision doc's labels to MoSCoW:
 
 | ID | Feature | Priority | Milestone | Depends on | Effort |
 | --- | --- | --- | --- | --- | --- |
-| [AIED-01](AIED-01-ai-editing-panel.md) | AI editing panel + free-text prompt | Must | M1 | AIED-02 | M |
+| [AIED-01](AIED-01-ai-editing-panel.md) | AI editing panel (UI + mocked response) | Must | M1 | — | M |
 | [AIED-02](AIED-02-api-key-storage.md) | Secure API key storage | Must | M1 | — | M |
+| [AIED-12](AIED-12-api-integration.md) | Anthropic API integration (replace mock) | Must | M1 | AIED-01, AIED-02 | M |
 | [AIED-03](AIED-03-preset-prompts.md) | Reusable prompt presets from history | Must | M1 | AIED-01 | M |
 | [AIED-04](AIED-04-save-to-anki.md) | Save AI changes back to Anki | Must | M1 | AIED-01 | S |
 | [AIED-05](AIED-05-undo-redo.md) | Per-field undo / redo | Must | **M1 (first)** | — | M |
@@ -37,10 +38,12 @@ Effort key (T-shirt): **S** ≈ < 1 day, **M** ≈ 1–3 days, **L** ≈ ≥ 1 w
 
 ## Suggested sequencing
 
-- **M1 — MVP edit loop:** `AIED-05 → AIED-02 → AIED-01 → AIED-04 → AIED-03`.
-  **AIED-05 (undo/redo) ships first** as a standalone foundation (field-snapshot history + buttons), then
-  the AI pipeline hooks into it. Outcome: select text (or whole field) → describe or pick a preset → AI
-  rewrites the field → Preview → Undo if wrong → Save. This is the full UX flow from the decision doc.
+- **M1 — MVP edit loop:** `AIED-05 → AIED-01 → AIED-04 → AIED-03 → AIED-02 → AIED-12`.
+  **AIED-05 (undo/redo) ships first** as a standalone foundation (field-snapshot history + buttons). Then
+  **AIED-01 builds the panel + apply pipeline against a mock** (echoes the selection), so the whole UX —
+  save (AIED-04), presets (AIED-03) — can be built and tested with no network/key. Finally **AIED-02 +
+  AIED-12 swap in the real Claude call**. Outcome: select text (or whole field) → describe or pick a
+  preset → AI rewrites the field → Preview → Undo if wrong → Save. Full UX flow from the decision doc.
 - **M2 — Power editing:** `AIED-06`, `AIED-07`. Card splitting and fact-checking.
 - **M3 — Personalization:** `AIED-08`, `AIED-09`, `AIED-10`. Extend the prompt store to full conversations,
   suggest prompts from patterns, and pin favorites.

@@ -74,6 +74,7 @@ import androidx.core.view.isVisible
 import androidx.draganddrop.DropHelper
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
+import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import anki.config.ConfigKey
@@ -136,11 +137,13 @@ import com.ichi2.anki.multimediacard.fields.IField
 import com.ichi2.anki.multimediacard.fields.ImageField
 import com.ichi2.anki.multimediacard.impl.MultimediaEditableNote
 import com.ichi2.anki.noteeditor.CustomToolbarButton
+import com.ichi2.anki.noteeditor.FieldSnapshot
 import com.ichi2.anki.noteeditor.FieldState
 import com.ichi2.anki.noteeditor.FieldState.FieldChangeType
 import com.ichi2.anki.noteeditor.FieldState.Type
 import com.ichi2.anki.noteeditor.NoteEditorFragmentDelegate
 import com.ichi2.anki.noteeditor.NoteEditorLauncher
+import com.ichi2.anki.noteeditor.NoteEditorUndoViewModel
 import com.ichi2.anki.noteeditor.Toolbar
 import com.ichi2.anki.noteeditor.Toolbar.TextFormatListener
 import com.ichi2.anki.noteeditor.Toolbar.TextWrapper
@@ -188,6 +191,7 @@ import com.ichi2.utils.positiveButton
 import com.ichi2.utils.show
 import com.ichi2.utils.title
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import net.ankiweb.rsdroid.Backend
@@ -202,6 +206,9 @@ import kotlin.math.min
 import kotlin.math.roundToInt
 
 const val CALLER_KEY = "caller"
+
+/** Idle time after the last keystroke before a field's content is snapshotted for undo/redo (AIED-05). */
+private const val SNAPSHOT_DEBOUNCE_MS = 1000L
 
 /**
  * Allows the user to edit a note, for instance if there is a typo. A card is a presentation of a note, and has two
@@ -260,6 +267,18 @@ class NoteEditorFragment :
         private set
 
     private val multimediaViewModel: MultimediaViewModel by activityViewModels()
+
+    /** Per-field undo/redo history (AIED-05). Fragment-scoped so it survives configuration changes. */
+    private val undoViewModel: NoteEditorUndoViewModel by viewModels()
+
+    /** Ord of the field most recently focused; the target for the undo/redo menu actions. */
+    private var lastFocusedFieldOrd = 0
+
+    /** Suppresses snapshot capture while a field is being restored programmatically during undo/redo. */
+    private var isRestoringHistory = false
+
+    /** Pending debounced snapshot jobs, keyed by field ord, so each field debounces independently. */
+    private val snapshotJobs = mutableMapOf<Int, Job>()
 
     private var currentImageOccPath: String? = null
 
@@ -1503,6 +1522,8 @@ class NoteEditorFragment :
                 }
             }
         }
+        menu.findItem(R.id.action_undo_field).isEnabled = undoViewModel.canUndo(lastFocusedFieldOrd)
+        menu.findItem(R.id.action_redo_field).isEnabled = undoViewModel.canRedo(lastFocusedFieldOrd)
         menu.findItem(R.id.action_show_toolbar).isChecked =
             !shouldHideToolbar()
         menu.findItem(R.id.action_capitalize).isChecked =
@@ -1556,6 +1577,16 @@ class NoteEditorFragment :
                 if (allowSaveAction()) {
                     launchCatchingTask { saveNote() }
                 }
+                return true
+            }
+            R.id.action_undo_field -> {
+                Timber.i("NoteEditor:: Undo field button pressed")
+                restoreFieldHistory(undoViewModel.undo(lastFocusedFieldOrd))
+                return true
+            }
+            R.id.action_redo_field -> {
+                Timber.i("NoteEditor:: Redo field button pressed")
+                restoreFieldHistory(undoViewModel.redo(lastFocusedFieldOrd))
                 return true
             }
             R.id.action_add_note_from_note_editor -> {
@@ -1949,6 +1980,8 @@ class NoteEditorFragment :
             editLineView.setHintLocale(getHintLocaleForField(editLineView.name))
             initFieldEditText(newEditText, i)
             editFields!!.add(newEditText)
+            // Seed the undo history with the field's initial content (AIED-05).
+            undoViewModel.seed(i, newEditText.text?.toString() ?: "")
             val prefs = this.sharedPrefs()
             if (prefs.getInt(PREF_NOTE_EDITOR_FONT_SIZE, -1) > 0) {
                 newEditText.textSize = prefs.getInt(PREF_NOTE_EDITOR_FONT_SIZE, -1).toFloat()
@@ -2235,30 +2268,41 @@ class NoteEditorFragment :
     ) {
         // Listen for changes in the first field so we can re-check duplicate status.
         editText!!.addTextChangedListener(EditFieldTextWatcher(index))
-        if (index == 0) {
-            editText.onFocusChangeListener =
-                OnFocusChangeListener { _: View?, hasFocus: Boolean ->
-                    try {
-                        if (hasFocus) {
-                            // we only want to decorate when we lose focus
-                            return@OnFocusChangeListener
-                        }
-                        @SuppressLint("CheckResult")
-                        val currentFieldStrings = currentFieldStrings
-                        if (currentFieldStrings.size != 2 || currentFieldStrings[1]!!.isNotEmpty()) {
-                            // we only decorate on 2-field cards while second field is still empty
-                            return@OnFocusChangeListener
-                        }
-                        val firstField = currentFieldStrings[0]
-                        val decoratedText = NoteFieldDecorator.aplicaHuevo(firstField)
-                        if (decoratedText != firstField) {
-                            // we only apply the decoration if it is actually different from the first field
-                            setFieldValueFromUi(1, decoratedText)
-                        }
-                    } catch (e: Exception) {
-                        Timber.w(e, "Unable to decorate text field")
-                    }
+        editText.onFocusChangeListener =
+            OnFocusChangeListener { _: View?, hasFocus: Boolean ->
+                if (hasFocus) {
+                    // Track the focused field so the undo/redo menu actions target it (AIED-05).
+                    lastFocusedFieldOrd = index
+                    activity?.invalidateOptionsMenu()
+                    return@OnFocusChangeListener
                 }
+                // we only want to decorate when we lose focus
+                if (index == 0) {
+                    decorateFirstFieldOnBlur()
+                }
+            }
+    }
+
+    /**
+     * Applies the "aplica huevo" decoration to the second field when the first one loses focus.
+     * Extracted from the field focus listener so the same listener can also track focus for undo/redo.
+     */
+    private fun decorateFirstFieldOnBlur() {
+        try {
+            @SuppressLint("CheckResult")
+            val currentFieldStrings = currentFieldStrings
+            if (currentFieldStrings.size != 2 || currentFieldStrings[1]!!.isNotEmpty()) {
+                // we only decorate on 2-field cards while second field is still empty
+                return
+            }
+            val firstField = currentFieldStrings[0]
+            val decoratedText = NoteFieldDecorator.aplicaHuevo(firstField)
+            if (decoratedText != firstField) {
+                // we only apply the decoration if it is actually different from the first field
+                setFieldValueFromUi(1, decoratedText)
+            }
+        } catch (e: Exception) {
+            Timber.w(e, "Unable to decorate text field")
         }
     }
 
@@ -2829,6 +2873,51 @@ class NoteEditorFragment :
         EditFieldTextWatcher(i).afterTextChanged(editText.text!!)
     }
 
+    /**
+     * Debounces a snapshot of field [ord]'s content onto its undo history (AIED-05). Skipped while sticky
+     * fields are loading or a previous state is being restored, so programmatic writes don't add history noise.
+     */
+    private fun scheduleSnapshot(ord: Int) {
+        if (loadingStickyFields || isRestoringHistory || view == null) return
+        snapshotJobs[ord]?.cancel()
+        snapshotJobs[ord] =
+            viewLifecycleOwner.lifecycleScope.launch {
+                delay(SNAPSHOT_DEBOUNCE_MS)
+                val field = editFields?.getOrNull(ord) ?: return@launch
+                undoViewModel.record(ord, field.text?.toString() ?: "", field.selectionEnd)
+                activity?.invalidateOptionsMenu()
+            }
+    }
+
+    /**
+     * Immediately records the current content of field [ord] onto its undo history, bypassing the typing
+     * debounce. Call this around programmatic changes that should be individually undoable — e.g. an AI
+     * rewrite (AIED-12): capture once before applying the rewrite and once after, so undo/redo can step
+     * through the change.
+     */
+    fun captureFieldSnapshot(ord: Int) {
+        val field = editFields?.getOrNull(ord) ?: return
+        snapshotJobs[ord]?.cancel()
+        undoViewModel.record(ord, field.text?.toString() ?: "", field.selectionEnd)
+        activity?.invalidateOptionsMenu()
+    }
+
+    /** Restores [snapshot] (from an undo/redo) into the focused field without recording a new snapshot. */
+    private fun restoreFieldHistory(snapshot: FieldSnapshot?) {
+        if (snapshot == null) return
+        val ord = lastFocusedFieldOrd
+        val field = editFields?.getOrNull(ord) ?: return
+        isRestoringHistory = true
+        try {
+            setFieldValueFromUi(ord, snapshot.text)
+            field.requestFocus()
+            field.setSelection(snapshot.selection.coerceIn(0, field.text?.length ?: 0))
+        } finally {
+            isRestoringHistory = false
+        }
+        activity?.invalidateOptionsMenu()
+    }
+
     @VisibleForTesting(otherwise = VisibleForTesting.NONE)
     fun getFieldForTest(index: Int): FieldEditText = editFields!![index]
 
@@ -2856,6 +2945,7 @@ class NoteEditorFragment :
             if (index == 0) {
                 setDuplicateFieldStyles()
             }
+            scheduleSnapshot(index)
         }
 
         override fun beforeTextChanged(
