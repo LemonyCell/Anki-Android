@@ -31,6 +31,7 @@ Priorities map the decision doc's labels to MoSCoW:
 | [AIED-08](AIED-08-conversation-history.md) | Local AI conversation history | Could | M3 | AIED-01 | M |
 | [AIED-09](AIED-09-prompt-autosuggest.md) | Prompt auto-suggest from usage patterns | Could | M3 | AIED-08 | L |
 | [AIED-10](AIED-10-pin-presets.md) | Pin presets to the top | P3 / low | M3+ | AIED-03 | S |
+| [AIED-11](AIED-11-export-presets.md) | Export preset/prompt DB to a text file | P3 / low | M3+ | AIED-03 | S |
 
 Effort key (T-shirt): **S** ≈ < 1 day, **M** ≈ 1–3 days, **L** ≈ ≥ 1 week (rough, for a contributor new to Kotlin/Android).
 
