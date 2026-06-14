@@ -19,10 +19,49 @@ unique automatically — keep it that way to avoid install conflicts with upstre
 > contributions sent to the upstream project. That restriction governs PRs to `ankidroid/Anki-Android`,
 > not local work on this personal fork — but do not open upstream PRs from AI-generated changes.
 
+## Environment (this dev machine)
+
+This fork is developed inside a dedicated WSL2 distro on Windows. Concrete, already-configured facts:
+
+| Item | Value |
+| --- | --- |
+| WSL distro | `anki-dev` (Ubuntu 24.04.4 LTS, WSL2, systemd enabled) |
+| Default user | `viktor` (passwordless `sudo`) |
+| Repo path (WSL) | `/home/viktor/Anki-Android` |
+| Repo path (from Windows) | `\\wsl.localhost\anki-dev\home\viktor\Anki-Android` |
+| JDK | OpenJDK 21 (`/usr/lib/jvm/java-21-openjdk-amd64`) |
+| Gradle / Kotlin | Gradle 9.5 (wrapper), Kotlin 2.3.20 |
+| Android SDK | `/home/viktor/Android/Sdk` (`ANDROID_HOME`/`ANDROID_SDK_ROOT` exported in `~/.bashrc`) |
+| SDK packages | `platform-tools`, `platforms;android-36`, `build-tools;36.0.0`, `cmdline-tools;latest` |
+| GitHub CLI | `gh` 2.94, authenticated as `LemonyCell` (token scopes: `repo`, `read:org`, `gist` — **no `workflow`**) |
+| Git remotes | `origin` = `LemonyCell/Anki-Android` (fork), `upstream` = `ankidroid/Anki-Android` |
+
+`local.properties` (git-ignored) is set to:
+
+```properties
+sdk.dir=/home/viktor/Android/Sdk
+enable_coverage=false
+```
+
+### Device / debugging
+
+Debugging uses **wireless adb** (WSL2 default NAT networking reaches the LAN; no `usbipd-win` needed).
+Target device: **Samsung Galaxy S21 (`SM-G991B`, Android 15)** at `192.168.0.192:41727`.
+
+```bash
+adb pair <ip>:<pair-port> <code>      # one-time, only after a phone reboot / re-pair
+adb connect 192.168.0.192:41727       # reconnect if the session dropped
+ANDROID_SERIAL=192.168.0.192:41727 ./gradlew installFullDebug   # build + install onto the phone
+```
+
+Note: a `gh auth refresh -s workflow` (extra browser approval) is required before pushing any change
+that modifies files under `.github/workflows` (e.g. when wiring up GitHub Actions builds for the fork).
+
 ## Build & run
 
 Requires JDK 21, Android SDK with `compileSdk`/build-tools **36** (`gradle/libs.versions.toml`),
-`ANDROID_HOME` set, and `local.properties` containing `sdk.dir=...`.
+`ANDROID_HOME` set, and `local.properties` containing `sdk.dir=...`. All of the above is already
+provisioned in the `anki-dev` WSL distro (see the Environment table).
 
 There are three product flavors on the `appStore` dimension: **`full`** (no storage/camera
 restrictions — use this for local device builds), `play`, and `amazon`. Combine the flavor with the
