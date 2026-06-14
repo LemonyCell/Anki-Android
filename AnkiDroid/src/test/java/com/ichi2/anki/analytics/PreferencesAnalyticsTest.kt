@@ -91,6 +91,7 @@ class PreferencesAnalyticsTest : RobolectricTest() {
             R.string.pref_notifications_blink_key, // widgetBlink
             // potential personal data
             R.string.sync_account_key, // syncAccount
+            R.string.open_router_api_key_preference_key, // openRouterApiKeyPreference
             R.string.custom_sync_server_collection_url_key, // syncBaseUrl
             R.string.pref_language_key, // language
             R.string.custom_sync_certificate_key, // customSyncCertificate

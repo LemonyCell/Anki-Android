@@ -44,6 +44,7 @@
     <string name="pref_cat_advanced" maxLength="41">Advanced</string>
     <string name="pref_cat_workarounds" maxLength="41">Workarounds</string>
     <string name="pref_cat_plugins" maxLength="41">Plugins</string>
+    <string name="pref_cat_ai_editor" maxLength="41">AI editor</string>
     <string name="pref_cat_editing" maxLength="41">Editing</string>
 
     <!-- preferences.xml entries-->
@@ -168,6 +169,13 @@
     <string name="pref_keep_screen_on_summ">Disable screen timeout</string>
     <string name="enable_api_title" maxLength="41">Enable AnkiDroid API</string>
     <string name="enable_api_summary">Let other apps connect to AnkiDroid and read / write data without your intervention</string>
+    <string name="open_router_api_key_title" maxLength="41">OpenRouter API key</string>
+    <string name="open_router_api_key_not_set">Not set</string>
+    <string name="open_router_api_key_configured">Configured</string>
+    <string name="open_router_api_key_dialog_message">Paste your OpenRouter API key. Leave blank or use Clear to remove it.</string>
+    <string name="open_router_api_key_clear">Clear</string>
+    <string name="open_router_api_key_saved">OpenRouter API key saved</string>
+    <string name="open_router_api_key_cleared">OpenRouter API key cleared</string>
     <string name="custom_buttons" maxLength="41">App bar buttons</string>
     <string name="custom_buttons_summary">Customize which actions appear in the app bar</string>
     <string name="custom_buttons_setting_always_show">Always show</string>

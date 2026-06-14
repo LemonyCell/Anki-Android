@@ -18,6 +18,8 @@ package com.ichi2.anki.preferences
 import android.content.ComponentName
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.text.InputType
+import android.widget.EditText
 import androidx.appcompat.app.AlertDialog
 import androidx.preference.EditTextPreference
 import androidx.preference.Preference
@@ -27,6 +29,7 @@ import com.ichi2.anki.CollectionManager
 import com.ichi2.anki.DeckPicker
 import com.ichi2.anki.MetaDB
 import com.ichi2.anki.R
+import com.ichi2.anki.ai.OpenRouterApiKeyStore
 import com.ichi2.anki.compat.CompatHelper
 import com.ichi2.anki.exception.StorageAccessException
 import com.ichi2.anki.launchCatchingTask
@@ -132,8 +135,62 @@ class AdvancedSettingsFragment : SettingsFragment() {
             requireActivity().packageManager.setComponentEnabledSetting(providerName, state, PackageManager.DONT_KILL_APP)
         }
 
+        setupOpenRouterApiKeySetting()
         setupNewStudyScreenSettings()
     }
+
+    private fun setupOpenRouterApiKeySetting() {
+        val keyStore = OpenRouterApiKeyStore(requireContext())
+        val apiKeyPreference = requirePreference<Preference>(R.string.open_router_api_key_preference_key)
+        apiKeyPreference.summary = apiKeySummary(keyStore)
+        apiKeyPreference.setOnPreferenceClickListener {
+            showOpenRouterApiKeyDialog(keyStore, apiKeyPreference)
+            true
+        }
+    }
+
+    private fun showOpenRouterApiKeyDialog(
+        keyStore: OpenRouterApiKeyStore,
+        preference: Preference,
+    ) {
+        val input =
+            EditText(requireContext()).apply {
+                inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
+                setSingleLine(true)
+                setText(keyStore.getApiKey().orEmpty())
+                setSelection(text.length)
+            }
+
+        AlertDialog.Builder(requireContext()).show {
+            setTitle(R.string.open_router_api_key_title)
+            setMessage(R.string.open_router_api_key_dialog_message)
+            setView(input)
+            setPositiveButton(R.string.save) { _, _ ->
+                val updatedApiKey = input.text.toString()
+                val wasSet = keyStore.hasApiKey()
+                keyStore.setApiKey(updatedApiKey)
+                preference.summary = apiKeySummary(keyStore)
+                if (keyStore.hasApiKey()) {
+                    showSnackbar(R.string.open_router_api_key_saved)
+                } else if (wasSet) {
+                    showSnackbar(R.string.open_router_api_key_cleared)
+                }
+            }
+            setNeutralButton(R.string.open_router_api_key_clear) { _, _ ->
+                keyStore.clearApiKey()
+                preference.summary = apiKeySummary(keyStore)
+                showSnackbar(R.string.open_router_api_key_cleared)
+            }
+            setNegativeButton(R.string.dialog_cancel, null)
+        }
+    }
+
+    private fun apiKeySummary(keyStore: OpenRouterApiKeyStore): String =
+        if (keyStore.hasApiKey()) {
+            getString(R.string.open_router_api_key_configured)
+        } else {
+            getString(R.string.open_router_api_key_not_set)
+        }
 
     private fun removeUnnecessaryAdvancedPrefs() {
         /* These preferences should be searchable or not based

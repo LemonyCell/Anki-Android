@@ -108,6 +108,12 @@
                 android:title="@string/thirdparty_apps_title">
             </Preference>
         </PreferenceCategory>
+        <PreferenceCategory android:title="@string/pref_cat_ai_editor">
+            <Preference
+                android:key="@string/open_router_api_key_preference_key"
+                android:summary="@string/open_router_api_key_not_set"
+                android:title="@string/open_router_api_key_title" />
+        </PreferenceCategory>
     <SwitchPreferenceCompat
         android:defaultValue="false"
         android:icon="@drawable/ic_warning"

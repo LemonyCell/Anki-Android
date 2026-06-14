@@ -72,8 +72,11 @@ For a parallel side-by-side build that won't clobber your real collection, use `
 - **Programmatic trigger:** Yes. The previewer reads field/note state, so after you change field content you can re-launch or refresh the previewer with updated arguments. In the dual-pane design there is an interface that the NoteEditor uses to notify the previewer of changes (the "interface for the noteeditor to send information on changes to the previewer" cited above) — that is exactly the hook to call after an AI edit.
 
 ### 7. Secure API key storage
-- **Current state:** AnkiDroid does **not** currently use EncryptedSharedPreferences or the Android KeyStore for app data; ordinary settings live in standard `SharedPreferences` (via `androidx.preference`). There is no existing secure-storage helper to reuse.
-- **Recommended pattern:** Store the user-provided key in `EncryptedSharedPreferences` (AES256-SIV keys / AES256-GCM values, master key in the Android KeyStore). minSdk 24 fully supports it. **Important deprecation note:** per the Android Developers Jetpack Security release notes, on April 9, 2025 `androidx.security:security-crypto:1.1.0-alpha07` "Deprecated all APIs in favour of existing platform APIs and direct use of Android Keystore." For a personal fork it remains functional, but the forward-looking options are (a) DataStore + Google Tink, or (b) the community fork `dev.spght:encryptedprefs-core` / `encryptedprefs-ktx`, maintained by Android GDE Ed Holloway-George (github.com/ed-george/encrypted-shared-preferences), "An updated fork of the AndroidX Crypto library (also known as JetSec)… based on JetSec's 1.1.0-alpha07 code." Example using the classic API:
+- **Status:** ✅ **Done in this fork** (`AIED-02` implemented).
+- **Main implementation:** `AnkiDroid/src/main/java/com/ichi2/anki/ai/OpenRouterApiKeyStore.kt` + Advanced settings entry in `AdvancedSettingsFragment`.
+- **Storage model:** API key is stored in `EncryptedSharedPreferences` (AES256-SIV keys / AES256-GCM values, master key in Android KeyStore). The implementation uses key name `open_router_api_key` and includes legacy fallback/migration from `anthropic_api_key`.
+- **Dependency note:** this uses `androidx.security:security-crypto:1.1.0-alpha07` (deprecated Apr 2025 but still functional for this personal fork). Future option remains DataStore + Tink / maintained forks.
+- **Reference snippet (same pattern used):**
 ```kotlin
 val masterKey = MasterKey.Builder(context)
     .setKeyScheme(MasterKey.KeyScheme.AES256_GCM).build()
@@ -81,7 +84,7 @@ val prefs = EncryptedSharedPreferences.create(
     context, "ai_secure_prefs", masterKey,
     EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
     EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM)
-prefs.edit().putString("anthropic_api_key", key).apply()
+prefs.edit().putString("open_router_api_key", key).apply()
 ```
 
 ## Details

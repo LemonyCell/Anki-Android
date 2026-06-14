@@ -414,6 +414,7 @@ dependencies {
     implementation libs.androidx.media
     implementation libs.androidx.preference.ktx
     implementation libs.androidx.recyclerview
+    implementation libs.androidx.security.crypto
     implementation libs.androidx.sqlite.framework
     implementation libs.androidx.swiperefreshlayout
     implementation libs.androidx.viewpager2
