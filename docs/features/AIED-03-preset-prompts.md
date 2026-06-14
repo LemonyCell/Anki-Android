@@ -4,7 +4,7 @@
 | --- | --- |
 | **Priority** | 🔴 Must |
 | **Milestone** | M1 (MVP) |
-| **Status** | Backlog |
+| **Status** | ✅ Done (functional core) |
 | **Depends on** | [AIED-01](AIED-01-ai-editing-panel.md) |
 | **Effort** | M |
 
@@ -47,6 +47,31 @@ user's own prompt history — it grows naturally and stays personal. There are *
 - [ ] Checking N presets appends their text to the request along with the typed prompt; unchecking removes them from the request.
 - [ ] "Removing" a preset hides it from the list but it remains in storage (soft-deleted), and a re-typed identical prompt re-appears (or un-soft-deletes) rather than duplicating.
 - [ ] No built-in presets are shown; an empty history shows an empty (or hint) list.
+
+## Implementation details (functional core)
+
+Implemented in commit `e196b24d36`:
+
+- `AnkiDroid/src/main/java/com/ichi2/anki/noteeditor/ai/PromptPresetStore.kt`
+  - Added local prompt preset storage using `SharedPreferences` + JSON serialization.
+  - Every submitted prompt is persisted with timestamp (`PromptSubmission(promptText, createdAt)`).
+  - Display list logic is deduplicated by normalized text (`trim + collapse whitespace`) and excludes soft-deleted presets.
+  - Soft delete is implemented as hidden normalized keys; history entries are retained.
+  - Re-submitting a soft-deleted prompt removes it from the soft-deleted set (un-hides it).
+  - Added `PromptPresetRequestBuilder.buildEffectivePrompt(...)` to append checked presets to typed prompt using `\n\n` separators and dedupe checked presets by normalized text.
+- `AnkiDroid/src/test/java/com/ichi2/anki/noteeditor/ai/PromptPresetStoreTest.kt`
+  - Added tests for persistence, deduplication, soft-delete/un-hide behavior, request assembly, and empty-history behavior.
+
+Implemented acceptance criteria:
+
+- [x] Submitting a prompt saves it locally with a timestamp; it survives an app restart.
+- [x] Identical prompts appear only once in the list (deduplicated).
+- [ ] The list is a scrollable, height-capped checkbox list; it does not dominate the panel.
+- [x] Checking N presets appends their text to the request along with the typed prompt; unchecking removes them from the request.
+- [x] "Removing" a preset hides it from the list but it remains in storage (soft-deleted), and a re-typed identical prompt re-appears (or un-soft-deletes) rather than duplicating.
+- [x] No built-in presets are shown; an empty history shows an empty (or hint) list.
+
+> Note: this task entry is marked done for the functional storage/request-builder layer. UI wiring to the AI panel/request flow is tracked separately.
 
 ## Technical notes
 

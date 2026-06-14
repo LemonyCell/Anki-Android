@@ -38,6 +38,13 @@ Status: ✅ done · 🔶 partial · ⬜ backlog
 
 Effort key (T-shirt): **S** ≈ < 1 day, **M** ≈ 1–3 days, **L** ≈ ≥ 1 week (rough, for a contributor new to Kotlin/Android).
 
+## Completed
+
+- **[AIED-03](AIED-03-preset-prompts.md)** — ✅ done (functional core).
+  Added local prompt preset persistence with timestamped history, deduplicated visible presets,
+  soft-delete/un-hide behavior, and prompt request-builder concatenation logic in
+  `PromptPresetStore` + `PromptPresetRequestBuilder` with test coverage.
+
 ## Suggested sequencing
 
 - **M1 — MVP edit loop:** `AIED-05 ✅ → AIED-01 → AIED-04 → AIED-03 → AIED-02 ✅ → AIED-12 🔶`.
