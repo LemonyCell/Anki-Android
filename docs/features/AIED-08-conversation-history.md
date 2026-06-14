@@ -22,6 +22,9 @@ what changed, and is the data source for prompt auto-suggest (AIED-09).
 
 **In:**
 - Persist each AI interaction locally (timestamp, field, instruction, input, output).
+- **Keep the whole AI request and response** — store the complete raw payloads (the full JSON request sent
+  to Claude, including model/params/messages, and the full raw response), not just the parsed
+  instruction/result, so interactions can be fully reconstructed and audited.
 - A simple way to view recent interactions.
 
 **Out:** cloud sync of history; sharing.
@@ -29,6 +32,7 @@ what changed, and is the data source for prompt auto-suggest (AIED-09).
 ## Acceptance criteria
 
 - [ ] Each AI edit is recorded locally and survives restart.
+- [ ] The full raw request and response payloads are retained for each interaction.
 - [ ] History is viewable in-app (basic list is enough).
 - [ ] Storage is bounded or prunable (no unbounded growth).
 

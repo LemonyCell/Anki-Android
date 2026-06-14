@@ -4,9 +4,13 @@
 | --- | --- |
 | **Priority** | 🔴 Must |
 | **Milestone** | M1 (MVP) |
-| **Status** | Backlog |
-| **Depends on** | [AIED-01](AIED-01-ai-editing-panel.md) |
+| **Status** | **In progress — implementing first** |
+| **Depends on** | — (foundation; AI-trigger wiring lands with [AIED-01](AIED-01-ai-editing-panel.md)) |
 | **Effort** | M |
+
+> **Implementation order:** this is being built **first**, before AIED-01. The history stack and
+> undo/redo UI work on field-content snapshots and can be developed and tested standalone; once AIED-01
+> exists, the only addition is pushing a snapshot before each AI rewrite.
 
 ## Problem / motivation
 
@@ -20,20 +24,30 @@ the result is wrong. This is the safety net that makes fast AI editing comfortab
 
 ## Scope
 
-**In:**
-- A history stack per field (keyed by field index); before each AI rewrite, push the current content.
-- Undo/Redo buttons in the panel with correct enable/disable state.
-- The exact cursor semantics from the decision doc: a new AI action after an undo overwrites the redo branch.
-- Survive configuration changes (rotation) — store in a `ViewModel`.
+Built in two phases because it ships before AIED-01:
+
+**Phase 1 (now, standalone):**
+- A history stack per field (keyed by field index), implemented as the `FieldHistory` class from the decision doc.
+- A snapshot is pushed at defined points (e.g. on field focus loss / explicit snapshot) so the mechanism is testable without AI.
+- Undo/Redo buttons (or menu actions) in the note editor with correct enable/disable state.
+- The exact cursor semantics from the decision doc: a new push after an undo overwrites the redo branch.
+- Survive configuration changes (rotation) — store in a `ViewModel`; cap stack depth (e.g. 20).
+
+**Phase 2 (when AIED-01 lands):**
+- Push a snapshot **before each AI rewrite**, so undo/redo steps through AI edits exactly as in the decision-doc flow.
 
 **Out:** integrating with Android IME keystroke-level undo or libanki collection undo (those already exist separately).
 
 ## Acceptance criteria
 
-- [ ] After AI edits A→B→C, Undo returns to B then A; Redo returns to B then C.
-- [ ] A new AI edit after undoing to A produces D and discards C (stack: A→B→D).
+Phrased over generic snapshots so Phase 1 is testable without AI (a snapshot = a pushed field state;
+in Phase 2 each AI rewrite is one snapshot):
+
+- [ ] After states A→B→C, Undo returns to B then A; Redo returns to B then C.
+- [ ] A new push after undoing to A produces D and discards C (stack: A→B→D).
 - [ ] Undo/Redo disabled at stack ends.
 - [ ] History per field is independent and survives rotation; stack depth is capped (e.g. 20) to bound memory.
+- [ ] Phase 2: a snapshot is captured before each AI rewrite, so undo reverts the AI change.
 
 ## Technical notes
 
