@@ -4,13 +4,39 @@
 | --- | --- |
 | **Priority** | 🔴 Must |
 | **Milestone** | M1 (MVP) |
-| **Status** | **In progress — implementing first** |
+| **Status** | **Done (Phase 1)** — verified on device; merged to `anki-viktor` |
 | **Depends on** | — (foundation; AI-trigger wiring lands with [AIED-01](AIED-01-ai-editing-panel.md)) |
 | **Effort** | M |
 
-> **Implementation order:** this is being built **first**, before AIED-01. The history stack and
-> undo/redo UI work on field-content snapshots and can be developed and tested standalone; once AIED-01
-> exists, the only addition is pushing a snapshot before each AI rewrite.
+> **Implementation order:** this was built **first**, before AIED-01. The history stack and undo/redo UI
+> work on field-content snapshots and were developed and tested standalone; once AIED-01 exists, the only
+> addition is calling `captureFieldSnapshot(ord)` before/after each AI rewrite (Phase 2).
+
+## Implementation details (Phase 1 — done)
+
+- `AnkiDroid/src/main/java/com/ichi2/anki/noteeditor/FieldHistory.kt`
+  - Pure stack + cursor with `push(text, selection)` / `undo()` / `redo()` / `canUndo` / `canRedo`.
+  - Stores `FieldSnapshot(text, selection)` so the **caret position** is restored, not just the text.
+  - Seeded with the field's initial content; redo-branch overwrite on new push; depth capped at 20.
+- `AnkiDroid/src/main/java/com/ichi2/anki/noteeditor/NoteEditorUndoViewModel.kt`
+  - Holds `Map<ord, FieldHistory>` so history **survives configuration changes** (rotation).
+- `AnkiDroid/src/main/java/com/ichi2/anki/NoteEditorFragment.kt`
+  - **Debounced capture** (~1s after typing stops) via the per-field `EditFieldTextWatcher`; captures `selectionEnd`.
+  - **Focus tracking** (`lastFocusedFieldOrd`) so undo/redo target the focused field; menu re-validated on focus/snapshot.
+  - **Restore** writes text via `setFieldValueFromUi`, then `requestFocus()` + `setSelection(...)`; guarded by `isRestoringHistory` so restores don't record new snapshots.
+  - **`captureFieldSnapshot(ord)`** — public manual trigger (bypasses debounce) for Phase 2 AI before/after snapshots.
+- `AnkiDroid/src/main/res/menu/note_editor.xml`
+  - App-bar items **Preview · Undo · Redo · Save**, all `showAsAction="always"` (reusing `@string/undo`/`@string/redo` + `ic_undo_white`/`ic_redo`).
+- `AnkiDroid/src/test/java/com/ichi2/anki/noteeditor/FieldHistoryTest.kt` — 7 unit tests (walk/redo-branch/no-op/cap/caret). Passing.
+
+## Acceptance criteria status
+
+- [x] After states A→B→C, Undo returns B then A; Redo returns B then C.
+- [x] A new push after undoing to A produces D and discards C.
+- [x] Undo/Redo disabled at stack ends.
+- [x] History per field is independent and survives rotation; depth capped (20).
+- [x] Caret position is restored on undo/redo (not reset to start).
+- [ ] Phase 2: snapshot before each AI rewrite — hook (`captureFieldSnapshot`) added; call sites land with AIED-01/AIED-12.
 
 ## Problem / motivation
 

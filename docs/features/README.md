@@ -19,31 +19,34 @@ Priorities map the decision doc's labels to MoSCoW:
 
 ## Backlog
 
-| ID | Feature | Priority | Milestone | Depends on | Effort |
-| --- | --- | --- | --- | --- | --- |
-| [AIED-01](AIED-01-ai-editing-panel.md) | AI editing panel (UI + mocked response) | Must | M1 | — | M |
-| [AIED-02](AIED-02-api-key-storage.md) | Secure API key storage | Must | M1 | — | M |
-| [AIED-12](AIED-12-api-integration.md) | Anthropic API integration (replace mock) | Must | M1 | AIED-01, AIED-02 | M |
-| [AIED-03](AIED-03-preset-prompts.md) | Reusable prompt presets from history | Must | M1 | AIED-01 | M |
-| [AIED-04](AIED-04-save-to-anki.md) | Save AI changes back to Anki | Must | M1 | AIED-01 | S |
-| [AIED-05](AIED-05-undo-redo.md) | Per-field undo / redo | Must | **M1 (first)** | — | M |
-| [AIED-06](AIED-06-split-card.md) | Split a card into two | Should | M2 | AIED-01, AIED-04 | L |
-| [AIED-07](AIED-07-fact-check-mcp.md) | Fact-check via Microsoft Learn MCP | Should | M2 | AIED-01 | L |
-| [AIED-08](AIED-08-conversation-history.md) | Local AI conversation history | Could | M3 | AIED-01 | M |
-| [AIED-09](AIED-09-prompt-autosuggest.md) | Prompt auto-suggest from usage patterns | Could | M3 | AIED-08 | L |
-| [AIED-10](AIED-10-pin-presets.md) | Pin presets to the top | P3 / low | M3+ | AIED-03 | S |
-| [AIED-11](AIED-11-export-presets.md) | Export preset/prompt DB to a text file | P3 / low | M3+ | AIED-03 | S |
+Status: ✅ done · 🔶 partial · ⬜ backlog
+
+| ID | Feature | Status | Priority | Milestone | Depends on | Effort |
+| --- | --- | --- | --- | --- | --- | --- |
+| [AIED-05](AIED-05-undo-redo.md) | Per-field undo / redo | ✅ done (Phase 1) | Must | **M1 (first)** | — | M |
+| [AIED-02](AIED-02-api-key-storage.md) | Secure API key storage | ✅ done | Must | M1 | — | M |
+| [AIED-12](AIED-12-api-integration.md) | OpenRouter API integration (replace mock) | 🔶 backend done; UI pending | Must | M1 | AIED-01, AIED-02 | M |
+| [AIED-01](AIED-01-ai-editing-panel.md) | AI editing panel (UI + mocked response) | ⬜ backlog | Must | M1 | — | M |
+| [AIED-04](AIED-04-save-to-anki.md) | Save AI changes back to Anki | ⬜ backlog | Must | M1 | AIED-01 | S |
+| [AIED-03](AIED-03-preset-prompts.md) | Reusable prompt presets from history | ⬜ backlog | Must | M1 | AIED-01 | M |
+| [AIED-06](AIED-06-split-card.md) | Split a card into two | ⬜ backlog | Should | M2 | AIED-01, AIED-04 | L |
+| [AIED-07](AIED-07-fact-check-mcp.md) | Fact-check via Microsoft Learn MCP | ⬜ backlog | Should | M2 | AIED-01 | L |
+| [AIED-08](AIED-08-conversation-history.md) | Local AI conversation history | ⬜ backlog | Could | M3 | AIED-01 | M |
+| [AIED-09](AIED-09-prompt-autosuggest.md) | Prompt auto-suggest from usage patterns | ⬜ backlog | Could | M3 | AIED-08 | L |
+| [AIED-10](AIED-10-pin-presets.md) | Pin presets to the top | ⬜ backlog | P3 / low | M3+ | AIED-03 | S |
+| [AIED-11](AIED-11-export-presets.md) | Export preset/prompt DB to a text file | ⬜ backlog | P3 / low | M3+ | AIED-03 | S |
 
 Effort key (T-shirt): **S** ≈ < 1 day, **M** ≈ 1–3 days, **L** ≈ ≥ 1 week (rough, for a contributor new to Kotlin/Android).
 
 ## Suggested sequencing
 
-- **M1 — MVP edit loop:** `AIED-05 → AIED-01 → AIED-04 → AIED-03 → AIED-02 → AIED-12`.
-  **AIED-05 (undo/redo) ships first** as a standalone foundation (field-snapshot history + buttons). Then
-  **AIED-01 builds the panel + apply pipeline against a mock** (echoes the selection), so the whole UX —
-  save (AIED-04), presets (AIED-03) — can be built and tested with no network/key. Finally **AIED-02 +
-  AIED-12 swap in the real Claude call**. Outcome: select text (or whole field) → describe or pick a
-  preset → AI rewrites the field → Preview → Undo if wrong → Save. Full UX flow from the decision doc.
+- **M1 — MVP edit loop:** `AIED-05 ✅ → AIED-01 → AIED-04 → AIED-03 → AIED-02 ✅ → AIED-12 🔶`.
+  **AIED-05 (undo/redo)** shipped first as a standalone foundation (field-snapshot history + buttons).
+  **AIED-02** (encrypted key store) and the **AIED-12 backend** (`OpenRouterNoteEditorRewriter`) are done.
+  The remaining gap is **AIED-01** — the panel + apply pipeline (mock first), which also unblocks AIED-04
+  (save), AIED-03 (presets), and the **AIED-12 UI wiring** that swaps the mock for the real OpenRouter call.
+  Outcome: select text (or whole field) → describe or pick a preset → AI rewrites the field → Preview →
+  Undo if wrong → Save. Full UX flow from the decision doc.
 - **M2 — Power editing:** `AIED-06`, `AIED-07`. Card splitting and fact-checking.
 - **M3 — Personalization:** `AIED-08`, `AIED-09`, `AIED-10`. Extend the prompt store to full conversations,
   suggest prompts from patterns, and pin favorites.
