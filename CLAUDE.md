@@ -118,3 +118,29 @@ Gradle modules (`settings.gradle`):
 
 When changing data-model or scheduling behavior, prefer `libanki/` and keep `AnkiDroid/` as the
 presentation/coordination layer.
+
+## Planned customization: AI note-editing panel
+
+The headline feature for this fork is an in-app **AI editing panel** in the note editor (edit cards with
+AI help during review, with per-field undo/redo). Two design docs capture the full rationale and research —
+read them before starting that work; this section is only a map, not a copy:
+
+- [`docs/ai-editor-decision.md`](docs/ai-editor-decision.md) — the decision, requirements, chosen approach
+  (fork + native panel), and the rejected alternatives (JS addon, reviewer WebView, PWA + AnkiConnect)
+  with the reasons each fails.
+- [`docs/ai-editor-technical-reference.md`](docs/ai-editor-technical-reference.md) — verified integration
+  details: file locations, field read/write APIs, OkHttp/coroutine call pattern, preview hook, and secure
+  key storage.
+
+Load-bearing facts for navigating that work (everything else lives in the docs above):
+
+- **Integration point:** `AnkiDroid/src/main/java/com/ichi2/anki/NoteEditorFragment.kt` (a Fragment hosted
+  by `SingleFragmentActivity`, classic XML layouts + `findViewById`, not Compose) and its layout
+  `AnkiDroid/src/main/res/layout/note_editor_fragment.xml`. Fields are `FieldEditText` views; saving goes
+  through libanki `undoableOp { col.updateNote(note) }`.
+- **No new deps needed for networking:** OkHttp and kotlinx-coroutines are already declared; use the
+  `launchCatchingTask { withContext(Dispatchers.IO) { … } }` idiom.
+- **Secure storage must be added:** there is no encrypted-storage helper in the codebase — the Anthropic
+  API key needs `EncryptedSharedPreferences` (or DataStore + Tink) added by us.
+- **Verify before coding:** method signatures in the technical reference are inferred from history; confirm
+  them against the actual files after each upstream sync (AnkiDroid refactors frequently).
