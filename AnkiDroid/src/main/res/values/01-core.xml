@@ -227,6 +227,10 @@
     <string name="ai_rewrite" comment="Note editor menu item that opens the AI editing panel.">AI</string>
     <string name="ai_rewrite_title">AI rewrite</string>
     <string name="ai_rewrite_prompt_hint">Describe what to change…</string>
+    <string name="ai_rewrite_presets_label">Saved presets</string>
+    <string name="ai_rewrite_presets_hint">Select presets to append. Use the delete icon to remove a preset.</string>
+    <string name="ai_rewrite_presets_empty">No saved presets yet.</string>
+    <string name="ai_rewrite_preset_remove">Remove preset</string>
     <string name="ai_rewrite_apply">Apply</string>
     <string name="ai_rewrite_editing_selection">Editing the selected text</string>
     <string name="ai_rewrite_editing_field">Editing the whole field</string>

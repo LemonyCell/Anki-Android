@@ -52,7 +52,8 @@ Effort key (T-shirt): **S** ≈ < 1 day, **M** ≈ 1–3 days, **L** ≈ ≥ 1 w
   missing-key snackbar → Settings, typed-error snackbars. Replaced the mock with no UI rework.
 - **[AIED-03](AIED-03-preset-prompts.md)** — ✅ done (functional core).
   Added local prompt preset persistence with timestamped history, deduplicated visible presets,
-  usage metrics (`usageCount`, `lastUsedAt`), soft-delete/un-hide behavior, and prompt request-builder concatenation logic in
+  usage metrics (`usageCount`, `lastUsedAt`), soft-delete/un-hide behavior, prompt request-builder concatenation logic, and
+  AI panel UI wiring (scrollable checkbox list + apply integration) in
   `PromptPresetStore` + `PromptPresetRequestBuilder` with test coverage.
 - **[AIED-13](AIED-13-model-picker.md)** — ✅ done. Advanced-settings model picker that fetches the OpenRouter
   catalogue with pricing (`OpenRouterModelCatalog`), grouped by provider (A→Z) and cheapest-first within each,

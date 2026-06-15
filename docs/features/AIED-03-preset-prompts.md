@@ -43,9 +43,9 @@ user's own prompt history — it grows naturally and stays personal. There are *
 
 - [ ] Submitting a prompt saves it locally with a timestamp; it survives an app restart.
 - [ ] Identical prompts appear only once in the list (deduplicated).
-- [ ] The list is a scrollable, height-capped checkbox list; it does not dominate the panel.
-- [ ] Checking N presets appends their text to the request along with the typed prompt; unchecking removes them from the request.
-- [ ] "Removing" a preset hides it from the list but it remains in storage (soft-deleted), and a re-typed identical prompt re-appears (or un-soft-deletes) rather than duplicating.
+- [x] The list is a scrollable, height-capped checkbox list; it does not dominate the panel.
+- [x] Checking N presets appends their text to the request along with the typed prompt; unchecking removes them from the request.
+- [x] "Removing" a preset hides it from the list but it remains in storage (soft-deleted), and a re-typed identical prompt re-appears (or un-soft-deletes) rather than duplicating.
 - [ ] No built-in presets are shown; an empty history shows an empty (or hint) list.
 
 ## Implementation details (functional core)
@@ -72,7 +72,16 @@ Implemented acceptance criteria:
 - [x] "Removing" a preset hides it from the list but it remains in storage (soft-deleted), and a re-typed identical prompt re-appears (or un-soft-deletes) rather than duplicating.
 - [x] No built-in presets are shown; an empty history shows an empty (or hint) list.
 
-> Note: this task entry is marked done for the functional storage/request-builder layer. UI wiring to the AI panel/request flow is tracked separately.
+## UI wiring (AI panel integration)
+
+- `AnkiDroid/src/main/java/com/ichi2/anki/noteeditor/ai/AiRewriteBottomSheet.kt`
+  - Loads visible presets from `PromptPresetStore` and renders them as a checkbox list.
+  - Applies `PromptPresetRequestBuilder` over typed prompt + checked presets before emitting apply.
+  - Persists typed submissions (`saveSubmittedPrompt`) when Apply is used.
+  - Records usage for checked presets (`recordPresetUsage`) for future recency/frequency ranking.
+  - Supports preset removal via per-row delete icon soft-delete (`softDeletePreset`) and immediate list refresh.
+- `AnkiDroid/src/main/res/layout/fragment_bottomsheet_ai_rewrite.xml`
+  - Added scrollable, height-capped preset list container and empty-state text.
 
 ## Technical notes
 

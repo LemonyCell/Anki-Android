@@ -38,6 +38,47 @@
             android:importantForAutofill="no" />
     </com.google.android.material.textfield.TextInputLayout>
 
+    <TextView
+        android:id="@+id/ai_rewrite_presets_label"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="@string/ai_rewrite_presets_label"
+        android:textAppearance="?attr/textAppearanceTitleSmall" />
+
+    <TextView
+        android:id="@+id/ai_rewrite_presets_hint"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:text="@string/ai_rewrite_presets_hint"
+        android:textAppearance="?attr/textAppearanceBodySmall" />
+
+    <TextView
+        android:id="@+id/ai_rewrite_presets_empty"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:text="@string/ai_rewrite_presets_empty"
+        android:textAppearance="?attr/textAppearanceBodyMedium"
+        android:visibility="gone" />
+
+    <ScrollView
+        android:id="@+id/ai_rewrite_presets_scroll"
+        android:layout_width="match_parent"
+        android:layout_height="160dp"
+        android:layout_marginTop="6dp"
+        android:fadeScrollbars="false"
+        android:overScrollMode="ifContentScrolls"
+        android:scrollbars="vertical">
+
+        <LinearLayout
+            android:id="@+id/ai_rewrite_presets_container"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical" />
+    </ScrollView>
+
     <com.google.android.material.button.MaterialButton
         android:id="@+id/ai_rewrite_apply"
         android:layout_width="wrap_content"

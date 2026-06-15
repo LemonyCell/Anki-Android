@@ -16,6 +16,7 @@
 
 package com.ichi2.anki.noteeditor.ai
 
+import android.content.Context
 import android.content.SharedPreferences
 import androidx.annotation.VisibleForTesting
 import androidx.core.content.edit
@@ -202,10 +203,16 @@ class PromptPresetStore(
     }
 
     companion object {
+        private const val PREFERENCES_FILE_NAME = "ai-prompt-preset-store"
         private const val STORAGE_KEY = "ai_prompt_preset_store"
         const val MAX_CONVERSATION_HISTORY_ENTRIES = 200
         private val whitespaceRegex = Regex("\\s+")
         private val json = Json { ignoreUnknownKeys = true }
+
+        fun fromContext(context: Context): PromptPresetStore =
+            PromptPresetStore(
+                context.getSharedPreferences(PREFERENCES_FILE_NAME, Context.MODE_PRIVATE),
+            )
 
         /**
          * Normalizes prompt text for deduplication:
