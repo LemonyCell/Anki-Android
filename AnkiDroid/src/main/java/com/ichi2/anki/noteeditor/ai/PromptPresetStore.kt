@@ -24,6 +24,7 @@ import com.ichi2.anki.common.time.TimeManager
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import timber.log.Timber
+import java.util.UUID
 
 /**
  * Stores AI prompt submissions locally and exposes a deduplicated preset list.
@@ -172,6 +173,89 @@ class PromptPresetStore(
         )
     }
 
+    // --- System prompt versions (AIED-14) ---
+
+    /** All saved system-prompt versions in creation order. The built-in Default is not included. */
+    fun getSystemPromptVersions(): List<SystemPromptVersion> = readState().systemPromptVersions
+
+    /** The active version id, or `null` when the built-in Default is active. */
+    fun getActiveSystemPromptVersionId(): String? = readState().activeSystemPromptVersionId
+
+    /** The active version's non-blank text, or [default] when Default is active / the text is blank. */
+    fun activeSystemPromptText(default: String): String {
+        val state = readState()
+        val active = state.systemPromptVersions.firstOrNull { it.id == state.activeSystemPromptVersionId }
+        return active?.text?.trim()?.takeIf { it.isNotEmpty() } ?: default
+    }
+
+    /** Creates a new version, makes it active, and returns its id. */
+    fun addSystemPromptVersion(
+        name: String,
+        text: String,
+        createdAt: Long = TimeManager.time.intTimeMS(),
+    ): String {
+        val id = UUID.randomUUID().toString()
+        val previousState = readState()
+        writeState(
+            previousState.copy(
+                systemPromptVersions = previousState.systemPromptVersions + SystemPromptVersion(id, name, text, createdAt),
+                activeSystemPromptVersionId = id,
+            ),
+        )
+        return id
+    }
+
+    /** Updates an existing version's name/text. Returns `false` if [id] is unknown. */
+    fun updateSystemPromptVersion(
+        id: String,
+        name: String,
+        text: String,
+    ): Boolean {
+        val previousState = readState()
+        if (previousState.systemPromptVersions.none { it.id == id }) return false
+        writeState(
+            previousState.copy(
+                systemPromptVersions =
+                    previousState.systemPromptVersions.map {
+                        if (it.id == id) it.copy(name = name, text = text) else it
+                    },
+            ),
+        )
+        return true
+    }
+
+    /** Creates a new active version copying [fromId]'s text. Returns the new id, or `null` if [fromId] is unknown. */
+    fun duplicateSystemPromptVersion(
+        fromId: String,
+        name: String,
+        createdAt: Long = TimeManager.time.intTimeMS(),
+    ): String? {
+        val source = readState().systemPromptVersions.firstOrNull { it.id == fromId } ?: return null
+        return addSystemPromptVersion(name, source.text, createdAt)
+    }
+
+    /** Deletes a version; if it was active, falls back to Default. Returns `false` if [id] is unknown. */
+    fun deleteSystemPromptVersion(id: String): Boolean {
+        val previousState = readState()
+        if (previousState.systemPromptVersions.none { it.id == id }) return false
+        writeState(
+            previousState.copy(
+                systemPromptVersions = previousState.systemPromptVersions.filterNot { it.id == id },
+                activeSystemPromptVersionId =
+                    previousState.activeSystemPromptVersionId.takeIf { it != id },
+            ),
+        )
+        return true
+    }
+
+    /** Sets the active version ([id] = `null` activates the built-in Default). Returns `false` if [id] is unknown. */
+    fun setActiveSystemPromptVersion(id: String?): Boolean {
+        val previousState = readState()
+        if (id != null && previousState.systemPromptVersions.none { it.id == id }) return false
+        writeState(previousState.copy(activeSystemPromptVersionId = id))
+        return true
+    }
+
     @VisibleForTesting
     fun clear() {
         sharedPreferences.edit { remove(STORAGE_KEY) }
@@ -193,7 +277,9 @@ class PromptPresetStore(
                 state.softDeletedNormalizedPrompts.isEmpty() &&
                 state.conversationHistory.isEmpty() &&
                 state.presetUsageCountByNormalizedPrompt.isEmpty() &&
-                state.presetLastUsedAtByNormalizedPrompt.isEmpty()
+                state.presetLastUsedAtByNormalizedPrompt.isEmpty() &&
+                state.systemPromptVersions.isEmpty() &&
+                state.activeSystemPromptVersionId == null
             ) {
                 remove(STORAGE_KEY)
             } else {
@@ -273,6 +359,18 @@ object PromptPresetRequestBuilder {
     }
 }
 
+/**
+ * A saved system-prompt version (AIED-14). The built-in "Default" prompt is not stored here — a `null`
+ * [StoredPromptPresetState.activeSystemPromptVersionId] means the default is active.
+ */
+@Serializable
+data class SystemPromptVersion(
+    val id: String,
+    val name: String,
+    val text: String,
+    val createdAt: Long,
+)
+
 @Serializable
 private data class StoredPromptPresetState(
     val submissions: List<PromptSubmission> = emptyList(),
@@ -280,4 +378,6 @@ private data class StoredPromptPresetState(
     val conversationHistory: List<AiConversationEntry> = emptyList(),
     val presetUsageCountByNormalizedPrompt: Map<String, Int> = emptyMap(),
     val presetLastUsedAtByNormalizedPrompt: Map<String, Long> = emptyMap(),
+    val systemPromptVersions: List<SystemPromptVersion> = emptyList(),
+    val activeSystemPromptVersionId: String? = null,
 )

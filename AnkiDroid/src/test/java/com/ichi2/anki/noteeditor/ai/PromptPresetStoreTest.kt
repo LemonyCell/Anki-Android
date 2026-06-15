@@ -25,6 +25,7 @@ import com.ichi2.anki.RobolectricTest
 import org.hamcrest.MatcherAssert.assertThat
 import org.hamcrest.Matchers.empty
 import org.hamcrest.Matchers.equalTo
+import org.hamcrest.Matchers.nullValue
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
@@ -228,5 +229,71 @@ class PromptPresetStoreTest : RobolectricTest() {
         assertThat(history.size, equalTo(PromptPresetStore.MAX_CONVERSATION_HISTORY_ENTRIES))
         assertThat(history.first().createdAt, equalTo(5L))
         assertThat(history.last().createdAt, equalTo((PromptPresetStore.MAX_CONVERSATION_HISTORY_ENTRIES + 4).toLong()))
+    }
+
+    @Test
+    fun `adding a system prompt version makes it active`() {
+        val id = store.addSystemPromptVersion(name = "Version 1", text = "Be concise.", createdAt = 1L)
+
+        assertThat(store.getActiveSystemPromptVersionId(), equalTo(id))
+        assertThat(store.activeSystemPromptText(default = "DEFAULT"), equalTo("Be concise."))
+        assertThat(store.getSystemPromptVersions().size, equalTo(1))
+    }
+
+    @Test
+    fun `activating default falls back to default text`() {
+        store.addSystemPromptVersion(name = "Version 1", text = "Be concise.", createdAt = 1L)
+
+        store.setActiveSystemPromptVersion(null)
+
+        assertThat(store.getActiveSystemPromptVersionId(), nullValue())
+        assertThat(store.activeSystemPromptText(default = "DEFAULT"), equalTo("DEFAULT"))
+    }
+
+    @Test
+    fun `blank active version falls back to default text`() {
+        store.addSystemPromptVersion(name = "Blank", text = "   ", createdAt = 1L)
+        assertThat(store.activeSystemPromptText(default = "DEFAULT"), equalTo("DEFAULT"))
+    }
+
+    @Test
+    fun `switching between versions changes active text`() {
+        val v1 = store.addSystemPromptVersion(name = "Version 1", text = "One", createdAt = 1L)
+        store.addSystemPromptVersion(name = "Version 2", text = "Two", createdAt = 2L)
+        assertThat(store.activeSystemPromptText(default = "DEFAULT"), equalTo("Two"))
+
+        store.setActiveSystemPromptVersion(v1)
+        assertThat(store.activeSystemPromptText(default = "DEFAULT"), equalTo("One"))
+    }
+
+    @Test
+    fun `duplicating copies text into a new active version`() {
+        val v1 = store.addSystemPromptVersion(name = "Version 1", text = "Original", createdAt = 1L)
+
+        val v3 = store.duplicateSystemPromptVersion(fromId = v1, name = "Version 3", createdAt = 3L)
+
+        assertThat(store.getSystemPromptVersions().size, equalTo(2))
+        assertThat(store.getActiveSystemPromptVersionId(), equalTo(v3))
+        assertThat(store.activeSystemPromptText(default = "DEFAULT"), equalTo("Original"))
+    }
+
+    @Test
+    fun `deleting the active version reverts to default`() {
+        val v1 = store.addSystemPromptVersion(name = "Version 1", text = "One", createdAt = 1L)
+
+        store.deleteSystemPromptVersion(v1)
+
+        assertThat(store.getSystemPromptVersions(), empty())
+        assertThat(store.getActiveSystemPromptVersionId(), nullValue())
+        assertThat(store.activeSystemPromptText(default = "DEFAULT"), equalTo("DEFAULT"))
+    }
+
+    @Test
+    fun `updating a version changes its text`() {
+        val v1 = store.addSystemPromptVersion(name = "Version 1", text = "Old", createdAt = 1L)
+
+        store.updateSystemPromptVersion(v1, name = "Version 1", text = "New")
+
+        assertThat(store.activeSystemPromptText(default = "DEFAULT"), equalTo("New"))
     }
 }

@@ -45,6 +45,8 @@ import com.ichi2.anki.noteeditor.ai.NoteEditorRewriteException
 import com.ichi2.anki.noteeditor.ai.OpenRouterModel
 import com.ichi2.anki.noteeditor.ai.OpenRouterModelCatalog
 import com.ichi2.anki.noteeditor.ai.OpenRouterNoteEditorRewriter
+import com.ichi2.anki.noteeditor.ai.PromptPresetStore
+import com.ichi2.anki.noteeditor.ai.SystemPromptVersion
 import com.ichi2.anki.provider.CardContentProvider
 import com.ichi2.anki.settings.Prefs
 import com.ichi2.anki.snackbar.showSnackbar
@@ -150,6 +152,7 @@ class AdvancedSettingsFragment : SettingsFragment() {
 
         setupOpenRouterApiKeySetting()
         setupOpenRouterModelSetting()
+        setupSystemPromptSetting()
         setupNewStudyScreenSettings()
     }
 
@@ -336,6 +339,161 @@ class AdvancedSettingsFragment : SettingsFragment() {
             getString(R.string.ai_model_price_unknown)
         }
     }
+
+    // --- Versioned system prompts (AIED-14) ---
+
+    private fun setupSystemPromptSetting() {
+        val store = PromptPresetStore(requireContext().sharedPrefs())
+        val preference = requirePreference<Preference>(R.string.ai_system_prompt_preference_key)
+        preference.summary = systemPromptSummary(store)
+        preference.setOnPreferenceClickListener {
+            showSystemPromptVersions(store, preference)
+            true
+        }
+    }
+
+    private fun systemPromptSummary(store: PromptPresetStore): String {
+        val activeId = store.getActiveSystemPromptVersionId()
+        val active = store.getSystemPromptVersions().firstOrNull { it.id == activeId }
+        return active?.name ?: getString(R.string.ai_system_prompt_default)
+    }
+
+    private fun showSystemPromptVersions(
+        store: PromptPresetStore,
+        preference: Preference,
+    ) {
+        val versions = store.getSystemPromptVersions()
+        val activeId = store.getActiveSystemPromptVersionId()
+        // Row 0 is the synthetic, read-only Default (null id); the rest are stored versions.
+        val rowIds = listOf<String?>(null) + versions.map { it.id }
+        val rowNames = listOf(getString(R.string.ai_system_prompt_default)) + versions.map { it.name }
+        val labels = rowIds.mapIndexed { index, id -> if (id == activeId) "${rowNames[index]}  ✓" else rowNames[index] }.toTypedArray()
+        AlertDialog.Builder(requireContext()).show {
+            setTitle(R.string.ai_system_prompt_title)
+            setItems(labels) { _, which ->
+                val id = rowIds[which]
+                if (id == null) {
+                    showDefaultActions(store, preference)
+                } else {
+                    showVersionActions(store, preference, versions.first { it.id == id })
+                }
+            }
+            setNeutralButton(R.string.ai_system_prompt_new) { _, _ ->
+                createNewSystemPromptVersion(store, preference)
+            }
+            setNegativeButton(R.string.dialog_cancel, null)
+        }
+    }
+
+    private fun showDefaultActions(
+        store: PromptPresetStore,
+        preference: Preference,
+    ) {
+        val actions =
+            arrayOf(
+                getString(R.string.ai_system_prompt_activate),
+                getString(R.string.ai_system_prompt_duplicate),
+            )
+        AlertDialog.Builder(requireContext()).show {
+            setTitle(R.string.ai_system_prompt_default)
+            setItems(actions) { _, which ->
+                when (which) {
+                    0 -> {
+                        store.setActiveSystemPromptVersion(null)
+                        preference.summary = systemPromptSummary(store)
+                        showSnackbar(getString(R.string.ai_system_prompt_activated, getString(R.string.ai_system_prompt_default)))
+                    }
+                    1 -> {
+                        val id = store.addSystemPromptVersion(nextVersionName(store), OpenRouterNoteEditorRewriter.DEFAULT_SYSTEM_PROMPT)
+                        preference.summary = systemPromptSummary(store)
+                        store.getSystemPromptVersions().firstOrNull { it.id == id }?.let {
+                            editSystemPromptVersion(store, preference, it)
+                        }
+                    }
+                }
+            }
+            setNegativeButton(R.string.dialog_cancel, null)
+        }
+    }
+
+    private fun showVersionActions(
+        store: PromptPresetStore,
+        preference: Preference,
+        version: SystemPromptVersion,
+    ) {
+        val actions =
+            arrayOf(
+                getString(R.string.ai_system_prompt_activate),
+                getString(R.string.ai_system_prompt_edit),
+                getString(R.string.ai_system_prompt_duplicate),
+                getString(R.string.ai_system_prompt_delete),
+            )
+        AlertDialog.Builder(requireContext()).show {
+            setTitle(version.name)
+            setItems(actions) { _, which ->
+                when (which) {
+                    0 -> {
+                        store.setActiveSystemPromptVersion(version.id)
+                        preference.summary = systemPromptSummary(store)
+                        showSnackbar(getString(R.string.ai_system_prompt_activated, version.name))
+                    }
+                    1 -> editSystemPromptVersion(store, preference, version)
+                    2 -> {
+                        val newId = store.duplicateSystemPromptVersion(version.id, nextVersionName(store)) ?: return@setItems
+                        preference.summary = systemPromptSummary(store)
+                        store.getSystemPromptVersions().firstOrNull { it.id == newId }?.let {
+                            editSystemPromptVersion(store, preference, it)
+                        }
+                    }
+                    3 -> {
+                        store.deleteSystemPromptVersion(version.id)
+                        preference.summary = systemPromptSummary(store)
+                    }
+                }
+            }
+            setNegativeButton(R.string.dialog_cancel, null)
+        }
+    }
+
+    private fun createNewSystemPromptVersion(
+        store: PromptPresetStore,
+        preference: Preference,
+    ) {
+        val id = store.addSystemPromptVersion(nextVersionName(store), "")
+        preference.summary = systemPromptSummary(store)
+        store.getSystemPromptVersions().firstOrNull { it.id == id }?.let {
+            editSystemPromptVersion(store, preference, it)
+        }
+    }
+
+    private fun editSystemPromptVersion(
+        store: PromptPresetStore,
+        preference: Preference,
+        version: SystemPromptVersion,
+    ) {
+        val input =
+            EditText(requireContext()).apply {
+                inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
+                minLines = 4
+                setText(version.text)
+            }
+        AlertDialog.Builder(requireContext()).show {
+            setTitle(version.name)
+            setMessage(R.string.ai_system_prompt_edit_message)
+            setView(input)
+            setPositiveButton(R.string.save) { _, _ ->
+                store.updateSystemPromptVersion(version.id, version.name, input.text.toString())
+                preference.summary = systemPromptSummary(store)
+            }
+            setNegativeButton(R.string.dialog_cancel, null)
+        }
+    }
+
+    private fun nextVersionName(store: PromptPresetStore): String =
+        getString(
+            R.string.ai_system_prompt_version_name,
+            store.getSystemPromptVersions().size + 1,
+        )
 
     private fun removeUnnecessaryAdvancedPrefs() {
         /* These preferences should be searchable or not based

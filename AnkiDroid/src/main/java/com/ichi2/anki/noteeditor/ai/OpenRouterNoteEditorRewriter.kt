@@ -90,6 +90,7 @@ class OpenRouterNoteEditorRewriter(
     private val apiKeyProvider: NoteEditorApiKeyProvider,
     private val httpClient: OkHttpClient = OkHttpClient(),
     private val modelProvider: () -> String = { DEFAULT_MODEL },
+    private val systemPromptProvider: () -> String = { DEFAULT_SYSTEM_PROMPT },
 ) : TraceableNoteEditorRewriter {
     override suspend fun rewriteWithTrace(
         input: String,
@@ -101,7 +102,8 @@ class OpenRouterNoteEditorRewriter(
                 throw MissingApiKeyException()
             }
             val model = modelProvider().trim().ifEmpty { DEFAULT_MODEL }
-            val requestBody = buildRequestBody(model = model, input = input, instruction = instruction)
+            val systemPrompt = systemPromptProvider().trim().ifEmpty { DEFAULT_SYSTEM_PROMPT }
+            val requestBody = buildRequestBody(model = model, systemPrompt = systemPrompt, input = input, instruction = instruction)
             val request =
                 Request
                     .Builder()
@@ -139,13 +141,14 @@ class OpenRouterNoteEditorRewriter(
         private val JSON_MEDIA_TYPE = "application/json".toMediaType()
         private const val OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
         const val DEFAULT_MODEL = "anthropic/claude-sonnet-4"
-        private const val SYSTEM_PROMPT =
+        const val DEFAULT_SYSTEM_PROMPT =
             "Rewrite the provided note field content according to the user instruction. " +
                 "Preserve meaning and formatting unless the instruction says otherwise. " +
                 "Return only the rewritten field content."
 
         internal fun buildRequestBody(
             model: String,
+            systemPrompt: String,
             input: String,
             instruction: String,
         ): String =
@@ -158,7 +161,7 @@ class OpenRouterNoteEditorRewriter(
                         .put(
                             JSONObject()
                                 .put("role", "system")
-                                .put("content", SYSTEM_PROMPT),
+                                .put("content", systemPrompt),
                         ).put(
                             JSONObject()
                                 .put("role", "user")

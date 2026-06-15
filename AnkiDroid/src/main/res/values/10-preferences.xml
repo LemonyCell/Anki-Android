@@ -184,6 +184,16 @@
     <string name="ai_model_selected">Model set: %s</string>
     <string name="ai_model_price_format">$%1$.2f in / $%2$.2f out per 1M tokens</string>
     <string name="ai_model_price_unknown">Pricing unavailable</string>
+    <string name="ai_system_prompt_title" maxLength="41">System prompt</string>
+    <string name="ai_system_prompt_default">Default</string>
+    <string name="ai_system_prompt_new">New version</string>
+    <string name="ai_system_prompt_version_name">Version %d</string>
+    <string name="ai_system_prompt_edit_message">System prompt used for AI rewrites</string>
+    <string name="ai_system_prompt_activate">Activate</string>
+    <string name="ai_system_prompt_edit">Edit</string>
+    <string name="ai_system_prompt_duplicate">Duplicate</string>
+    <string name="ai_system_prompt_delete">Delete</string>
+    <string name="ai_system_prompt_activated">Active system prompt: %s</string>
     <string name="custom_buttons" maxLength="41">App bar buttons</string>
     <string name="custom_buttons_summary">Customize which actions appear in the app bar</string>
     <string name="custom_buttons_setting_always_show">Always show</string>

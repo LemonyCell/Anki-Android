@@ -116,6 +116,9 @@
             <Preference
                 android:key="@string/open_router_model_preference_key"
                 android:title="@string/ai_model_title" />
+            <Preference
+                android:key="@string/ai_system_prompt_preference_key"
+                android:title="@string/ai_system_prompt_title" />
         </PreferenceCategory>
     <SwitchPreferenceCompat
         android:defaultValue="false"

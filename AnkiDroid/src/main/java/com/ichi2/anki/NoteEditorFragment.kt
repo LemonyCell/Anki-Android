@@ -301,9 +301,12 @@ class NoteEditorFragment :
     /** Stores the model chosen in the picker (AIED-13). */
     private val modelStore by lazy { OpenRouterModelStore(sharedPrefs()) }
 
+    /** Local AI store: prompt presets/history (AIED-03/08) and system-prompt versions (AIED-14). */
+    private val promptPresetStore by lazy { PromptPresetStore(sharedPrefs()) }
+
     /**
      * The real rewriter (AIED-12): OpenRouter call, wrapped so each interaction is saved to history (AIED-08).
-     * The key and model are read fresh on every call, so changing them and retrying needs no rebuild.
+     * The key, model and active system prompt are read fresh on every call, so changes need no rebuild.
      */
     private val noteRewriter: NoteEditorRewriter by lazy {
         ConversationHistoryNoteEditorRewriter(
@@ -311,8 +314,11 @@ class NoteEditorFragment :
                 OpenRouterNoteEditorRewriter(
                     apiKeyProvider = { apiKeyStore.getApiKey() },
                     modelProvider = { modelStore.getSelectedModel() ?: OpenRouterNoteEditorRewriter.DEFAULT_MODEL },
+                    systemPromptProvider = {
+                        promptPresetStore.activeSystemPromptText(OpenRouterNoteEditorRewriter.DEFAULT_SYSTEM_PROMPT)
+                    },
                 ),
-            promptPresetStore = PromptPresetStore(sharedPrefs()),
+            promptPresetStore = promptPresetStore,
         )
     }
 
