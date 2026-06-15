@@ -84,6 +84,39 @@ class OpenRouterNoteEditorRewriterTest {
         }
 
     @Test
+    fun rewriteWithTraceReturnsRawRequestAndResponse() =
+        runTest {
+            val rawResponse = """{"choices":[{"message":{"content":"rewritten text"}}]}"""
+            val client =
+                OkHttpClient
+                    .Builder()
+                    .addInterceptor(
+                        Interceptor { chain ->
+                            Response
+                                .Builder()
+                                .request(chain.request())
+                                .protocol(Protocol.HTTP_1_1)
+                                .code(200)
+                                .message("OK")
+                                .body(rawResponse.toResponseBody())
+                                .build()
+                        },
+                    ).build()
+
+            val rewriter =
+                OpenRouterNoteEditorRewriter(
+                    apiKeyProvider = NoteEditorApiKeyProvider { "or-key-123" },
+                    httpClient = client,
+                )
+
+            val trace = rewriter.rewriteWithTrace("old text", "improve clarity")
+
+            assertEquals("rewritten text", trace.output)
+            assertTrue(requireNotNull(trace.rawRequestBody).contains("Field content:\\nold text"))
+            assertEquals(rawResponse, trace.rawResponseBody)
+        }
+
+    @Test
     fun rewriteThrowsReadableApiError() =
         runTest {
             val client =
@@ -116,5 +149,77 @@ class OpenRouterNoteEditorRewriterTest {
             thrown as OpenRouterApiException
             assertEquals(401, thrown.statusCode)
             assertEquals("Invalid API key", thrown.message)
+            assertTrue(requireNotNull(thrown.rawRequestBody).contains("Instruction:\\nnew"))
+            assertEquals("""{"error":{"message":"Invalid API key"}}""", thrown.rawResponseBody)
+        }
+
+    @Test
+    fun rewriteFallsBackToHttpErrorMessageWhenErrorBodyIsEmpty() =
+        runTest {
+            val client =
+                OkHttpClient
+                    .Builder()
+                    .addInterceptor(
+                        Interceptor { chain ->
+                            Response
+                                .Builder()
+                                .request(chain.request())
+                                .protocol(Protocol.HTTP_1_1)
+                                .code(503)
+                                .message("Service Unavailable")
+                                .body("".toResponseBody())
+                                .build()
+                        },
+                    ).build()
+
+            val rewriter =
+                OpenRouterNoteEditorRewriter(
+                    apiKeyProvider = NoteEditorApiKeyProvider { "ok-key" },
+                    httpClient = client,
+                )
+
+            val thrown =
+                runCatching { rewriter.rewrite("old", "new") }
+                    .exceptionOrNull()
+
+            assertTrue(thrown is OpenRouterApiException)
+            thrown as OpenRouterApiException
+            assertEquals("OpenRouter request failed with HTTP 503", thrown.message)
+            assertEquals("", thrown.rawResponseBody)
+        }
+
+    @Test
+    fun rewriteThrowsInvalidResponseWhenSuccessBodyIsEmpty() =
+        runTest {
+            val client =
+                OkHttpClient
+                    .Builder()
+                    .addInterceptor(
+                        Interceptor { chain ->
+                            Response
+                                .Builder()
+                                .request(chain.request())
+                                .protocol(Protocol.HTTP_1_1)
+                                .code(200)
+                                .message("OK")
+                                .body("".toResponseBody())
+                                .build()
+                        },
+                    ).build()
+
+            val rewriter =
+                OpenRouterNoteEditorRewriter(
+                    apiKeyProvider = NoteEditorApiKeyProvider { "ok-key" },
+                    httpClient = client,
+                )
+
+            val thrown =
+                runCatching { rewriter.rewrite("old", "new") }
+                    .exceptionOrNull()
+
+            assertTrue(thrown is InvalidOpenRouterResponseException)
+            thrown as InvalidOpenRouterResponseException
+            assertEquals("Failed to parse OpenRouter response", thrown.message)
+            assertEquals("", thrown.rawResponseBody)
         }
 }

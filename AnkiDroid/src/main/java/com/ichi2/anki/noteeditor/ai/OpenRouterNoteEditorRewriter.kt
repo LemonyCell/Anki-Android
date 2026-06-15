@@ -40,9 +40,29 @@ fun interface NoteEditorRewriter {
     ): String
 }
 
+data class NoteEditorRewriteTrace(
+    val output: String,
+    val rawRequestBody: String?,
+    val rawResponseBody: String?,
+)
+
+interface TraceableNoteEditorRewriter : NoteEditorRewriter {
+    suspend fun rewriteWithTrace(
+        input: String,
+        instruction: String,
+    ): NoteEditorRewriteTrace
+
+    override suspend fun rewrite(
+        input: String,
+        instruction: String,
+    ): String = rewriteWithTrace(input, instruction).output
+}
+
 sealed class NoteEditorRewriteException(
     message: String,
     cause: Throwable? = null,
+    val rawRequestBody: String? = null,
+    val rawResponseBody: String? = null,
 ) : Exception(message, cause)
 
 class MissingApiKeyException : NoteEditorRewriteException("API key is not set")
@@ -50,26 +70,31 @@ class MissingApiKeyException : NoteEditorRewriteException("API key is not set")
 class OpenRouterApiException(
     val statusCode: Int,
     message: String,
-) : NoteEditorRewriteException(message)
+    rawRequestBody: String? = null,
+    rawResponseBody: String? = null,
+) : NoteEditorRewriteException(message, rawRequestBody = rawRequestBody, rawResponseBody = rawResponseBody)
 
 class InvalidOpenRouterResponseException(
     message: String,
     cause: Throwable? = null,
-) : NoteEditorRewriteException(message, cause)
+    rawRequestBody: String? = null,
+    rawResponseBody: String? = null,
+) : NoteEditorRewriteException(message, cause, rawRequestBody, rawResponseBody)
 
 class OpenRouterNetworkException(
     cause: IOException,
-) : NoteEditorRewriteException("Network error while calling OpenRouter", cause)
+    rawRequestBody: String? = null,
+) : NoteEditorRewriteException("Network error while calling OpenRouter", cause, rawRequestBody = rawRequestBody)
 
 class OpenRouterNoteEditorRewriter(
     private val apiKeyProvider: NoteEditorApiKeyProvider,
     private val httpClient: OkHttpClient = OkHttpClient(),
     private val model: String = DEFAULT_MODEL,
-) : NoteEditorRewriter {
-    override suspend fun rewrite(
+) : TraceableNoteEditorRewriter {
+    override suspend fun rewriteWithTrace(
         input: String,
         instruction: String,
-    ): String =
+    ): NoteEditorRewriteTrace =
         withContext(Dispatchers.IO) {
             val apiKey = apiKeyProvider.getApiKey()?.trim().orEmpty()
             if (apiKey.isEmpty()) {
@@ -91,12 +116,21 @@ class OpenRouterNoteEditorRewriter(
                     if (!response.isSuccessful) {
                         val errorMessage =
                             parseErrorMessage(responseBody) ?: "OpenRouter request failed with HTTP ${response.code}"
-                        throw OpenRouterApiException(response.code, errorMessage)
+                        throw OpenRouterApiException(
+                            statusCode = response.code,
+                            message = errorMessage,
+                            rawRequestBody = requestBody,
+                            rawResponseBody = responseBody,
+                        )
                     }
-                    return@withContext parseRewrittenText(responseBody)
+                    return@withContext NoteEditorRewriteTrace(
+                        output = parseRewrittenText(responseBody, requestBody),
+                        rawRequestBody = requestBody,
+                        rawResponseBody = responseBody,
+                    )
                 }
             } catch (e: IOException) {
-                throw OpenRouterNetworkException(e)
+                throw OpenRouterNetworkException(cause = e, rawRequestBody = requestBody)
             }
         }
 
@@ -134,25 +168,49 @@ class OpenRouterNoteEditorRewriter(
                         ),
                 ).toString()
 
-        internal fun parseRewrittenText(responseBody: String): String {
+        internal fun parseRewrittenText(
+            responseBody: String,
+            rawRequestBody: String? = null,
+        ): String {
             try {
                 val root = JSONObject(responseBody)
                 val choices =
                     root.optJSONArray("choices")
-                        ?: throw InvalidOpenRouterResponseException("OpenRouter response has no choices")
+                        ?: throw InvalidOpenRouterResponseException(
+                            message = "OpenRouter response has no choices",
+                            rawRequestBody = rawRequestBody,
+                            rawResponseBody = responseBody,
+                        )
                 if (choices.length() == 0) {
-                    throw InvalidOpenRouterResponseException("OpenRouter response has empty choices")
+                    throw InvalidOpenRouterResponseException(
+                        message = "OpenRouter response has empty choices",
+                        rawRequestBody = rawRequestBody,
+                        rawResponseBody = responseBody,
+                    )
                 }
                 val message =
                     choices.getJSONObject(0).optJSONObject("message")
-                        ?: throw InvalidOpenRouterResponseException("OpenRouter response has no message")
+                        ?: throw InvalidOpenRouterResponseException(
+                            message = "OpenRouter response has no message",
+                            rawRequestBody = rawRequestBody,
+                            rawResponseBody = responseBody,
+                        )
                 val content = message.optString("content").trim()
                 if (content.isEmpty()) {
-                    throw InvalidOpenRouterResponseException("OpenRouter response content is empty")
+                    throw InvalidOpenRouterResponseException(
+                        message = "OpenRouter response content is empty",
+                        rawRequestBody = rawRequestBody,
+                        rawResponseBody = responseBody,
+                    )
                 }
                 return content
             } catch (e: JSONException) {
-                throw InvalidOpenRouterResponseException("Failed to parse OpenRouter response", e)
+                throw InvalidOpenRouterResponseException(
+                    message = "Failed to parse OpenRouter response",
+                    cause = e,
+                    rawRequestBody = rawRequestBody,
+                    rawResponseBody = responseBody,
+                )
             }
         }
 

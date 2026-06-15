@@ -31,7 +31,7 @@ Status: ✅ done · 🔶 partial · ⬜ backlog
 | [AIED-03](AIED-03-preset-prompts.md) | Reusable prompt presets from history | ✅ done (core) | Must | M1 | AIED-01 | M |
 | [AIED-06](AIED-06-split-card.md) | Split a card into two | ⬜ backlog | Should | M2 | AIED-01, AIED-04 | L |
 | [AIED-07](AIED-07-fact-check-mcp.md) | Fact-check via Microsoft Learn MCP | ⬜ backlog | Should | M2 | AIED-01 | L |
-| [AIED-08](AIED-08-conversation-history.md) | Local AI conversation history | ⬜ backlog | Could | M3 | AIED-01 | M |
+| [AIED-08](AIED-08-conversation-history.md) | Local AI conversation history | 🔶 backend done; UI pending | Could | M3 | AIED-01 | M |
 | [AIED-09](AIED-09-prompt-autosuggest.md) | Prompt auto-suggest from usage patterns | ⬜ backlog | Could | M3 | AIED-08 | L |
 | [AIED-10](AIED-10-pin-presets.md) | Pin presets to the top | ⬜ backlog | P3 / low | M3+ | AIED-03 | S |
 | [AIED-11](AIED-11-export-presets.md) | Export preset/prompt DB to a text file | ⬜ backlog | P3 / low | M3+ | AIED-03 | S |

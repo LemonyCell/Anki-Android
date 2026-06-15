@@ -19,6 +19,7 @@ import android.content.ComponentName
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.text.InputType
+import android.text.method.PasswordTransformationMethod
 import android.widget.EditText
 import androidx.appcompat.app.AlertDialog
 import androidx.preference.EditTextPreference
@@ -155,10 +156,12 @@ class AdvancedSettingsFragment : SettingsFragment() {
     ) {
         val input =
             EditText(requireContext()).apply {
-                inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
+                inputType =
+                    InputType.TYPE_CLASS_TEXT or
+                    InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS or
+                    InputType.TYPE_TEXT_VARIATION_PASSWORD
+                transformationMethod = PasswordTransformationMethod.getInstance()
                 setSingleLine(true)
-                setText(keyStore.getApiKey().orEmpty())
-                setSelection(text.length)
             }
 
         AlertDialog.Builder(requireContext()).show {

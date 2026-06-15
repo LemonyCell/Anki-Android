@@ -113,6 +113,24 @@ class PromptPresetStore(
         return true
     }
 
+    /**
+     * Returns persisted AI conversation history in chronological order.
+     */
+    fun getConversationHistory(): List<AiConversationEntry> = readState().conversationHistory
+
+    /**
+     * Appends one AI interaction entry and prunes older entries to [MAX_CONVERSATION_HISTORY_ENTRIES].
+     */
+    fun saveConversationEntry(entry: AiConversationEntry) {
+        val previousState = readState()
+        val updatedHistory = (previousState.conversationHistory + entry).takeLast(MAX_CONVERSATION_HISTORY_ENTRIES)
+        writeState(
+            previousState.copy(
+                conversationHistory = updatedHistory,
+            ),
+        )
+    }
+
     @VisibleForTesting
     fun clear() {
         sharedPreferences.edit { remove(STORAGE_KEY) }
@@ -130,7 +148,10 @@ class PromptPresetStore(
 
     private fun writeState(state: StoredPromptPresetState) {
         sharedPreferences.edit {
-            if (state.submissions.isEmpty() && state.softDeletedNormalizedPrompts.isEmpty()) {
+            if (state.submissions.isEmpty() &&
+                state.softDeletedNormalizedPrompts.isEmpty() &&
+                state.conversationHistory.isEmpty()
+            ) {
                 remove(STORAGE_KEY)
             } else {
                 putString(STORAGE_KEY, json.encodeToString(state))
@@ -140,6 +161,7 @@ class PromptPresetStore(
 
     companion object {
         private const val STORAGE_KEY = "ai_prompt_preset_store"
+        const val MAX_CONVERSATION_HISTORY_ENTRIES = 200
         private val whitespaceRegex = Regex("\\s+")
         private val json = Json { ignoreUnknownKeys = true }
 
@@ -160,6 +182,17 @@ data class PromptSubmission(
 data class PromptPreset(
     val promptText: String,
     val createdAt: Long,
+)
+
+@Serializable
+data class AiConversationEntry(
+    val createdAt: Long,
+    val instruction: String,
+    val input: String,
+    val output: String? = null,
+    val rawRequestBody: String? = null,
+    val rawResponseBody: String? = null,
+    val errorMessage: String? = null,
 )
 
 /**
@@ -193,4 +226,5 @@ object PromptPresetRequestBuilder {
 private data class StoredPromptPresetState(
     val submissions: List<PromptSubmission> = emptyList(),
     val softDeletedNormalizedPrompts: Set<String> = emptySet(),
+    val conversationHistory: List<AiConversationEntry> = emptyList(),
 )

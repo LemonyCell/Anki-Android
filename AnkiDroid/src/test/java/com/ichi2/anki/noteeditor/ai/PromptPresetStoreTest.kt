@@ -141,4 +141,42 @@ class PromptPresetStoreTest : RobolectricTest() {
     fun `no built-in presets are returned for empty history`() {
         assertThat(store.getVisiblePresets(), empty())
     }
+
+    @Test
+    fun `conversation entries are persisted`() {
+        val entry =
+            AiConversationEntry(
+                createdAt = 42L,
+                instruction = "Shorten this",
+                input = "Original text",
+                output = "Short text",
+                rawRequestBody = """{"model":"anthropic/claude-sonnet-4"}""",
+                rawResponseBody = """{"choices":[{"message":{"content":"Short text"}}]}""",
+            )
+        store.saveConversationEntry(entry)
+
+        val reloadedStore = PromptPresetStore(sharedPreferences)
+
+        assertThat(reloadedStore.getConversationHistory(), equalTo(listOf(entry)))
+    }
+
+    @Test
+    fun `conversation history is bounded`() {
+        repeat(PromptPresetStore.MAX_CONVERSATION_HISTORY_ENTRIES + 5) { index ->
+            store.saveConversationEntry(
+                AiConversationEntry(
+                    createdAt = index.toLong(),
+                    instruction = "Instruction $index",
+                    input = "Input $index",
+                    output = "Output $index",
+                ),
+            )
+        }
+
+        val history = store.getConversationHistory()
+
+        assertThat(history.size, equalTo(PromptPresetStore.MAX_CONVERSATION_HISTORY_ENTRIES))
+        assertThat(history.first().createdAt, equalTo(5L))
+        assertThat(history.last().createdAt, equalTo((PromptPresetStore.MAX_CONVERSATION_HISTORY_ENTRIES + 4).toLong()))
+    }
 }
