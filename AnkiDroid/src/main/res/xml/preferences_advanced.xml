@@ -113,6 +113,9 @@
                 android:key="@string/open_router_api_key_preference_key"
                 android:summary="@string/open_router_api_key_not_set"
                 android:title="@string/open_router_api_key_title" />
+            <Preference
+                android:key="@string/open_router_model_preference_key"
+                android:title="@string/ai_model_title" />
         </PreferenceCategory>
     <SwitchPreferenceCompat
         android:defaultValue="false"

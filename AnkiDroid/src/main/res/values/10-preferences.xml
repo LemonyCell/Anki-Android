@@ -176,6 +176,14 @@
     <string name="open_router_api_key_clear">Clear</string>
     <string name="open_router_api_key_saved">OpenRouter API key saved</string>
     <string name="open_router_api_key_cleared">OpenRouter API key cleared</string>
+    <string name="ai_model_title" maxLength="41">AI model</string>
+    <string name="ai_model_loading">Loading models…</string>
+    <string name="ai_model_load_failed">Couldn\'t load models</string>
+    <string name="ai_model_enter_manually">Enter manually</string>
+    <string name="ai_model_manual_message">Enter an OpenRouter model id</string>
+    <string name="ai_model_selected">Model set: %s</string>
+    <string name="ai_model_price_format">$%1$.2f in / $%2$.2f out per 1M tokens</string>
+    <string name="ai_model_price_unknown">Pricing unavailable</string>
     <string name="custom_buttons" maxLength="41">App bar buttons</string>
     <string name="custom_buttons_summary">Customize which actions appear in the app bar</string>
     <string name="custom_buttons_setting_always_show">Always show</string>

@@ -203,6 +203,7 @@
     <string name="enable_api_key">providerEnabled</string>
     <string name="thirdparty_apps_key">thirdpartyapps_link</string>
     <string name="open_router_api_key_preference_key">openRouterApiKeyPreference</string>
+    <string name="open_router_model_preference_key">openRouterModelPreference</string>
     <string name="tts_key">tts</string>
     <string name="double_scrolling_gap_key">double_scrolling</string>
     <string name="html_javascript_debugging_key">html_javascript_debugging</string>

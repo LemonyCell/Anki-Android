@@ -89,7 +89,7 @@ class OpenRouterNetworkException(
 class OpenRouterNoteEditorRewriter(
     private val apiKeyProvider: NoteEditorApiKeyProvider,
     private val httpClient: OkHttpClient = OkHttpClient(),
-    private val model: String = DEFAULT_MODEL,
+    private val modelProvider: () -> String = { DEFAULT_MODEL },
 ) : TraceableNoteEditorRewriter {
     override suspend fun rewriteWithTrace(
         input: String,
@@ -100,6 +100,7 @@ class OpenRouterNoteEditorRewriter(
             if (apiKey.isEmpty()) {
                 throw MissingApiKeyException()
             }
+            val model = modelProvider().trim().ifEmpty { DEFAULT_MODEL }
             val requestBody = buildRequestBody(model = model, input = input, instruction = instruction)
             val request =
                 Request
@@ -137,7 +138,7 @@ class OpenRouterNoteEditorRewriter(
     companion object {
         private val JSON_MEDIA_TYPE = "application/json".toMediaType()
         private const val OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
-        private const val DEFAULT_MODEL = "anthropic/claude-sonnet-4"
+        const val DEFAULT_MODEL = "anthropic/claude-sonnet-4"
         private const val SYSTEM_PROMPT =
             "Rewrite the provided note field content according to the user instruction. " +
                 "Preserve meaning and formatting unless the instruction says otherwise. " +

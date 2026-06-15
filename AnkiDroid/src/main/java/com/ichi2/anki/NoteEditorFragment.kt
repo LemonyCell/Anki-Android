@@ -88,6 +88,7 @@ import com.ichi2.anki.CollectionManager.withCol
 import com.ichi2.anki.NoteEditorFragment.Companion.NoteEditorCaller.Companion.fromValue
 import com.ichi2.anki.OnContextAndLongClickListener.Companion.setOnContextAndLongClickListener
 import com.ichi2.anki.ai.OpenRouterApiKeyStore
+import com.ichi2.anki.ai.OpenRouterModelStore
 import com.ichi2.anki.android.input.ShortcutGroup
 import com.ichi2.anki.android.input.ShortcutGroupProvider
 import com.ichi2.anki.android.input.shortcut
@@ -297,13 +298,20 @@ class NoteEditorFragment :
     /** Encrypted OpenRouter API key store (AIED-02). Lazy so it builds after the fragment is attached. */
     private val apiKeyStore by lazy { OpenRouterApiKeyStore(requireContext()) }
 
+    /** Stores the model chosen in the picker (AIED-13). */
+    private val modelStore by lazy { OpenRouterModelStore(sharedPrefs()) }
+
     /**
      * The real rewriter (AIED-12): OpenRouter call, wrapped so each interaction is saved to history (AIED-08).
-     * The key is read fresh on every call, so setting it and retrying works without rebuilding.
+     * The key and model are read fresh on every call, so changing them and retrying needs no rebuild.
      */
     private val noteRewriter: NoteEditorRewriter by lazy {
         ConversationHistoryNoteEditorRewriter(
-            delegate = OpenRouterNoteEditorRewriter(apiKeyProvider = { apiKeyStore.getApiKey() }),
+            delegate =
+                OpenRouterNoteEditorRewriter(
+                    apiKeyProvider = { apiKeyStore.getApiKey() },
+                    modelProvider = { modelStore.getSelectedModel() ?: OpenRouterNoteEditorRewriter.DEFAULT_MODEL },
+                ),
             promptPresetStore = PromptPresetStore(sharedPrefs()),
         )
     }

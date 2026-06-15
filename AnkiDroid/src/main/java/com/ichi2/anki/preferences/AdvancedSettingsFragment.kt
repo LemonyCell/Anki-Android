@@ -31,13 +31,19 @@ import com.ichi2.anki.DeckPicker
 import com.ichi2.anki.MetaDB
 import com.ichi2.anki.R
 import com.ichi2.anki.ai.OpenRouterApiKeyStore
+import com.ichi2.anki.ai.OpenRouterModelStore
 import com.ichi2.anki.compat.CompatHelper
 import com.ichi2.anki.exception.StorageAccessException
 import com.ichi2.anki.launchCatchingTask
+import com.ichi2.anki.noteeditor.ai.NoteEditorRewriteException
+import com.ichi2.anki.noteeditor.ai.OpenRouterModel
+import com.ichi2.anki.noteeditor.ai.OpenRouterModelCatalog
+import com.ichi2.anki.noteeditor.ai.OpenRouterNoteEditorRewriter
 import com.ichi2.anki.provider.CardContentProvider
 import com.ichi2.anki.settings.Prefs
 import com.ichi2.anki.snackbar.showSnackbar
 import com.ichi2.anki.utils.openUrl
+import com.ichi2.anki.withProgress
 import com.ichi2.utils.show
 import timber.log.Timber
 import java.io.File
@@ -137,6 +143,7 @@ class AdvancedSettingsFragment : SettingsFragment() {
         }
 
         setupOpenRouterApiKeySetting()
+        setupOpenRouterModelSetting()
         setupNewStudyScreenSettings()
     }
 
@@ -194,6 +201,94 @@ class AdvancedSettingsFragment : SettingsFragment() {
         } else {
             getString(R.string.open_router_api_key_not_set)
         }
+
+    private fun setupOpenRouterModelSetting() {
+        val modelStore = OpenRouterModelStore(requireContext().sharedPrefs())
+        val modelPreference = requirePreference<Preference>(R.string.open_router_model_preference_key)
+        modelPreference.summary = modelSummary(modelStore)
+        modelPreference.setOnPreferenceClickListener {
+            showModelPicker(modelStore, modelPreference)
+            true
+        }
+    }
+
+    private fun modelSummary(modelStore: OpenRouterModelStore): String =
+        modelStore.getSelectedModel() ?: OpenRouterNoteEditorRewriter.DEFAULT_MODEL
+
+    /** Fetches the OpenRouter catalogue and shows a single-choice list with pricing (AIED-13). */
+    private fun showModelPicker(
+        modelStore: OpenRouterModelStore,
+        preference: Preference,
+    ) {
+        launchCatchingTask {
+            val models =
+                try {
+                    val keyStore = OpenRouterApiKeyStore(requireContext())
+                    withProgress(getString(R.string.ai_model_loading)) {
+                        OpenRouterModelCatalog(apiKeyProvider = { keyStore.getApiKey() }).fetchModels()
+                    }
+                } catch (e: NoteEditorRewriteException) {
+                    Timber.w(e, "Failed to fetch OpenRouter models")
+                    showSnackbar(R.string.ai_model_load_failed)
+                    showManualModelEntry(modelStore, preference)
+                    return@launchCatchingTask
+                }
+            if (models.isEmpty()) {
+                showSnackbar(R.string.ai_model_load_failed)
+                showManualModelEntry(modelStore, preference)
+                return@launchCatchingTask
+            }
+            val current = modelSummary(modelStore)
+            val labels = models.map { modelLabel(it) }.toTypedArray()
+            val checked = models.indexOfFirst { it.id == current }
+            AlertDialog.Builder(requireContext()).show {
+                setTitle(R.string.ai_model_title)
+                setSingleChoiceItems(labels, checked) { dialog, which ->
+                    modelStore.setSelectedModel(models[which].id)
+                    preference.summary = modelSummary(modelStore)
+                    showSnackbar(getString(R.string.ai_model_selected, models[which].id))
+                    dialog.dismiss()
+                }
+                setNeutralButton(R.string.ai_model_enter_manually) { _, _ ->
+                    showManualModelEntry(modelStore, preference)
+                }
+                setNegativeButton(R.string.dialog_cancel, null)
+            }
+        }
+    }
+
+    private fun showManualModelEntry(
+        modelStore: OpenRouterModelStore,
+        preference: Preference,
+    ) {
+        val input =
+            EditText(requireContext()).apply {
+                setSingleLine(true)
+                setText(modelSummary(modelStore))
+            }
+        AlertDialog.Builder(requireContext()).show {
+            setTitle(R.string.ai_model_title)
+            setMessage(R.string.ai_model_manual_message)
+            setView(input)
+            setPositiveButton(R.string.save) { _, _ ->
+                modelStore.setSelectedModel(input.text.toString())
+                preference.summary = modelSummary(modelStore)
+            }
+            setNegativeButton(R.string.dialog_cancel, null)
+        }
+    }
+
+    private fun modelLabel(model: OpenRouterModel): String {
+        val prompt = model.promptPerMillion
+        val completion = model.completionPerMillion
+        val price =
+            if (prompt != null && completion != null) {
+                getString(R.string.ai_model_price_format, prompt, completion)
+            } else {
+                getString(R.string.ai_model_price_unknown)
+            }
+        return "${model.name}\n$price"
+    }
 
     private fun removeUnnecessaryAdvancedPrefs() {
         /* These preferences should be searchable or not based
