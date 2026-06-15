@@ -230,4 +230,7 @@
     <string name="ai_rewrite_apply">Apply</string>
     <string name="ai_rewrite_editing_selection">Editing the selected text</string>
     <string name="ai_rewrite_editing_field">Editing the whole field</string>
+    <string name="ai_rewrite_set_api_key">Set your OpenRouter API key to use AI</string>
+    <string name="ai_rewrite_open_settings">Settings</string>
+    <string name="ai_rewrite_failed">AI rewrite failed</string>
 </resources>

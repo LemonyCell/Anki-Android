@@ -25,12 +25,13 @@ Status: ✅ done · 🔶 partial · ⬜ backlog
 | --- | --- | --- | --- | --- | --- | --- |
 | [AIED-05](AIED-05-undo-redo.md) | Per-field undo / redo | ✅ done (Phase 1) | Must | **M1 (first)** | — | M |
 | [AIED-02](AIED-02-api-key-storage.md) | Secure API key storage | ✅ done | Must | M1 | — | M |
-| [AIED-12](AIED-12-api-integration.md) | OpenRouter API integration (replace mock) | 🔶 backend done; UI pending | Must | M1 | AIED-01, AIED-02 | M |
+| [AIED-12](AIED-12-api-integration.md) | OpenRouter API integration (replace mock) | ✅ done | Must | M1 | AIED-01, AIED-02 | M |
 | [AIED-01](AIED-01-ai-editing-panel.md) | AI editing panel (UI + mocked response) | ✅ done | Must | M1 | — | M |
 | [AIED-04](AIED-04-save-to-anki.md) | Save AI changes back to Anki | ⬜ backlog | Must | M1 | AIED-01 | S |
 | [AIED-03](AIED-03-preset-prompts.md) | Reusable prompt presets from history | ✅ done (core) | Must | M1 | AIED-01 | M |
 | [AIED-06](AIED-06-split-card.md) | Split a card into two | ⬜ backlog | Should | M2 | AIED-01, AIED-04 | L |
 | [AIED-07](AIED-07-fact-check-mcp.md) | Fact-check via Microsoft Learn MCP | ⬜ backlog | Should | M2 | AIED-01 | L |
+| [AIED-13](AIED-13-model-picker.md) | Model picker (fetch models + pricing) | ⬜ backlog | Should | M2 | AIED-12 | M |
 | [AIED-08](AIED-08-conversation-history.md) | Local AI conversation history | 🔶 backend done; UI pending | Could | M3 | AIED-01 | M |
 | [AIED-09](AIED-09-prompt-autosuggest.md) | Prompt auto-suggest from usage patterns | ⬜ backlog | Could | M3 | AIED-08 | L |
 | [AIED-10](AIED-10-pin-presets.md) | Pin presets to the top | ⬜ backlog | P3 / low | M3+ | AIED-03 | S |
@@ -46,7 +47,9 @@ Effort key (T-shirt): **S** ≈ < 1 day, **M** ≈ 1–3 days, **L** ≈ ≥ 1 w
 - **[AIED-01](AIED-01-ai-editing-panel.md)** — ✅ done. AI panel (BottomSheet) + apply pipeline behind the
   `NoteEditorRewriter` seam, using a `MockNoteEditorRewriter` (wraps input in `«…»`); selection/whole-field
   handling, empty-prompt guard, single-undo-step integration. AIED-12 swaps in the real call with no UI change.
-- **[AIED-12](AIED-12-api-integration.md)** — 🔶 backend done. `OpenRouterNoteEditorRewriter` + tests; UI wiring pending.
+- **[AIED-12](AIED-12-api-integration.md)** — ✅ done. Real OpenRouter call wired into the panel via
+  `ConversationHistoryNoteEditorRewriter → OpenRouterNoteEditorRewriter` (fresh key per call, records history);
+  missing-key snackbar → Settings, typed-error snackbars. Replaced the mock with no UI rework.
 - **[AIED-03](AIED-03-preset-prompts.md)** — ✅ done (functional core).
   Added local prompt preset persistence with timestamped history, deduplicated visible presets,
   soft-delete/un-hide behavior, and prompt request-builder concatenation logic in
@@ -54,12 +57,11 @@ Effort key (T-shirt): **S** ≈ < 1 day, **M** ≈ 1–3 days, **L** ≈ ≥ 1 w
 
 ## Suggested sequencing
 
-- **M1 — MVP edit loop:** `AIED-05 ✅ → AIED-01 ✅ → AIED-04 → AIED-03 ✅ → AIED-02 ✅ → AIED-12 🔶`.
-  Done: undo/redo (AIED-05), the AI panel + apply pipeline against the mock (AIED-01), encrypted key store
-  (AIED-02), the preset/history core (AIED-03), and the AIED-12 rewriter backend.
-  **Remaining for a real MVP:** **AIED-12 UI wiring** (swap `MockNoteEditorRewriter` for the OpenRouter
-  rewriter + key provider — the only change needed, no UI rework) and **AIED-04** (persist AI edits to the
-  collection). Wiring AIED-03 presets into the AIED-01 panel is the remaining UI integration.
+- **M1 — MVP edit loop:** `AIED-05 ✅ → AIED-01 ✅ → AIED-12 ✅ → AIED-03 ✅ → AIED-02 ✅ → AIED-04 ⬜`.
+  Done: undo/redo (AIED-05), the AI panel (AIED-01), the real OpenRouter call wired in (AIED-12), encrypted
+  key store (AIED-02), and the preset/history core (AIED-03). The editor now performs real AI rewrites.
+  **Remaining for a complete MVP:** **AIED-04** (persist AI edits to the collection via the Save path), and
+  wiring the **AIED-03 preset checkboxes into the AIED-01 panel** (UI integration of the existing store).
   Outcome: select text (or whole field) → describe or pick a preset → AI rewrites the field → Preview →
   Undo if wrong → Save. Full UX flow from the decision doc.
 - **M2 — Power editing:** `AIED-06`, `AIED-07`. Card splitting and fact-checking.

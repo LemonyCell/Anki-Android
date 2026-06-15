@@ -87,6 +87,7 @@ import com.ichi2.anki.CollectionManager.TR
 import com.ichi2.anki.CollectionManager.withCol
 import com.ichi2.anki.NoteEditorFragment.Companion.NoteEditorCaller.Companion.fromValue
 import com.ichi2.anki.OnContextAndLongClickListener.Companion.setOnContextAndLongClickListener
+import com.ichi2.anki.ai.OpenRouterApiKeyStore
 import com.ichi2.anki.android.input.ShortcutGroup
 import com.ichi2.anki.android.input.ShortcutGroupProvider
 import com.ichi2.anki.android.input.shortcut
@@ -148,13 +149,18 @@ import com.ichi2.anki.noteeditor.Toolbar
 import com.ichi2.anki.noteeditor.Toolbar.TextFormatListener
 import com.ichi2.anki.noteeditor.Toolbar.TextWrapper
 import com.ichi2.anki.noteeditor.ai.AiRewriteBottomSheet
-import com.ichi2.anki.noteeditor.ai.MockNoteEditorRewriter
+import com.ichi2.anki.noteeditor.ai.ConversationHistoryNoteEditorRewriter
 import com.ichi2.anki.noteeditor.ai.NoteEditorAiViewModel
 import com.ichi2.anki.noteeditor.ai.NoteEditorRewriteApplier
+import com.ichi2.anki.noteeditor.ai.NoteEditorRewriteException
 import com.ichi2.anki.noteeditor.ai.NoteEditorRewriter
+import com.ichi2.anki.noteeditor.ai.OpenRouterNoteEditorRewriter
+import com.ichi2.anki.noteeditor.ai.PromptPresetStore
 import com.ichi2.anki.observability.undoableOp
 import com.ichi2.anki.pages.ImageOcclusion
 import com.ichi2.anki.pages.viewmodel.ImageOcclusionArgs
+import com.ichi2.anki.preferences.AdvancedSettingsFragment
+import com.ichi2.anki.preferences.PreferencesActivity
 import com.ichi2.anki.preferences.sharedPrefs
 import com.ichi2.anki.previewer.TemplatePreviewerArguments
 import com.ichi2.anki.previewer.TemplatePreviewerPage
@@ -288,8 +294,19 @@ class NoteEditorFragment :
     /** AI editing panel (AIED-01). Shared with [AiRewriteBottomSheet] so Apply requests reach the editor. */
     private val aiViewModel: NoteEditorAiViewModel by activityViewModels()
 
-    /** The rewrite backend. A mock for now (AIED-01); AIED-12 swaps in the real OpenRouter rewriter. */
-    private val noteRewriter: NoteEditorRewriter = MockNoteEditorRewriter()
+    /** Encrypted OpenRouter API key store (AIED-02). Lazy so it builds after the fragment is attached. */
+    private val apiKeyStore by lazy { OpenRouterApiKeyStore(requireContext()) }
+
+    /**
+     * The real rewriter (AIED-12): OpenRouter call, wrapped so each interaction is saved to history (AIED-08).
+     * The key is read fresh on every call, so setting it and retrying works without rebuilding.
+     */
+    private val noteRewriter: NoteEditorRewriter by lazy {
+        ConversationHistoryNoteEditorRewriter(
+            delegate = OpenRouterNoteEditorRewriter(apiKeyProvider = { apiKeyStore.getApiKey() }),
+            promptPresetStore = PromptPresetStore(sharedPrefs()),
+        )
+    }
 
     /** Target captured when the AI panel is opened (focus is lost once the sheet shows). */
     private var aiTargetOrd = 0
@@ -2979,16 +2996,36 @@ class NoteEditorFragment :
     private fun applyAiRewrite(instruction: String) {
         val ord = aiTargetOrd
         val field = editFields?.getOrNull(ord) ?: return
+        if (!apiKeyStore.hasApiKey()) {
+            promptForApiKey()
+            return
+        }
         val fullText = field.text?.toString() ?: ""
         val input = fullText.substring(aiSelStart.coerceIn(0, fullText.length), aiSelEnd.coerceIn(0, fullText.length))
         launchCatchingTask {
             captureFieldSnapshot(ord)
-            val result = noteRewriter.rewrite(input, instruction)
+            val result =
+                try {
+                    noteRewriter.rewrite(input, instruction)
+                } catch (e: NoteEditorRewriteException) {
+                    Timber.w(e, "AI rewrite failed")
+                    showSnackbar(e.localizedMessage ?: getString(R.string.ai_rewrite_failed))
+                    return@launchCatchingTask
+                }
             val rewrite = NoteEditorRewriteApplier.compose(fullText, aiSelStart, aiSelEnd, result)
             setFieldValueFromUi(ord, rewrite.text)
             field.requestFocus()
             field.setSelection(rewrite.caret.coerceIn(0, field.text?.length ?: 0))
             captureFieldSnapshot(ord)
+        }
+    }
+
+    /** Tells the user an OpenRouter API key is required and offers to open the settings screen to set it. */
+    private fun promptForApiKey() {
+        showSnackbar(getString(R.string.ai_rewrite_set_api_key)) {
+            setAction(R.string.ai_rewrite_open_settings) {
+                startActivity(PreferencesActivity.getIntent(requireContext(), AdvancedSettingsFragment::class))
+            }
         }
     }
 

@@ -4,7 +4,7 @@
 | --- | --- |
 | **Priority** | 🔴 Must |
 | **Milestone** | M1 (MVP) |
-| **Status** | **Partial — backend implemented; UI wiring pending** |
+| **Status** | **Done** — wired into the AI panel; verified on device |
 | **Depends on** | [AIED-01](AIED-01-ai-editing-panel.md) (panel + apply pipeline), [AIED-02](AIED-02-api-key-storage.md) (API key) |
 | **Effort** | M |
 
@@ -42,17 +42,22 @@ be swapped without code changes.
   - Typed errors: `MissingApiKeyException`, `OpenRouterApiException(statusCode)`, `InvalidOpenRouterResponseException`, `OpenRouterNetworkException`.
 - `AnkiDroid/src/test/java/com/ichi2/anki/noteeditor/ai/OpenRouterNoteEditorRewriterTest.kt` — unit tests (request body, response/error parsing). Passing.
 
-**Pending (UI wiring — blocked on AIED-01):**
-- Construct the rewriter with a `NoteEditorApiKeyProvider` reading AIED-02's `OpenRouterApiKeyStore`.
-- Replace the AIED-01 mock with this rewriter at the apply call site; add loading/error UI and the missing-key prompt.
+**Done (UI wiring — `NoteEditorFragment.kt`):**
+- The panel's `noteRewriter` now composes the real chain:
+  `ConversationHistoryNoteEditorRewriter(delegate = OpenRouterNoteEditorRewriter(apiKeyProvider = { apiKeyStore.getApiKey() }), promptPresetStore = PromptPresetStore(sharedPrefs()))`
+  (built lazily; the mock is removed). Wrapping with the history decorator also records each interaction (AIED-08).
+- The API key is read **fresh per call** from `OpenRouterApiKeyStore` (AIED-02), so setting it and retrying needs no rebuild.
+- **Missing-key UX:** `applyAiRewrite` checks `apiKeyStore.hasApiKey()` first; if absent it shows a snackbar with a **Settings** action that deep-links to `AdvancedSettingsFragment` (no crash dialog, field unchanged).
+- **Error UX:** `NoteEditorRewriteException` is caught and shown as a snackbar (no crash report); the field is left unchanged. Unexpected errors still go through `launchCatchingTask`.
+- New strings: `ai_rewrite_set_api_key`, `ai_rewrite_open_settings`, `ai_rewrite_failed`.
 
 ## Acceptance criteria
 
 - [x] A rewrite implementation performs a real round-trip to the LLM (OpenRouter) and returns the rewritten text. *(backend: `OpenRouterNoteEditorRewriter`)*
-- [x] Network/API errors are represented as readable, typed exceptions. *(`OpenRouter*Exception` types)*
+- [x] Network/API errors are represented as readable, typed exceptions, surfaced as a snackbar. *(`OpenRouter*Exception` types)*
 - [x] The rewrite sits behind AIED-01's interface so the mock is swappable without UI changes. *(`NoteEditorRewriter`)*
-- [ ] Tapping Apply in the panel runs the real call and writes the result into the field (no app switch). *(blocked on AIED-01 wiring)*
-- [ ] The stored AIED-02 key is used; when no key is set, the user is told to set one and no call is made. *(provider exists; wiring pending)*
+- [x] Tapping Apply in the panel runs the real call and writes the result into the field (no app switch).
+- [x] The stored AIED-02 key is used; when no key is set, the user is prompted (snackbar → Settings) and no call is made.
 
 ## Technical notes
 
