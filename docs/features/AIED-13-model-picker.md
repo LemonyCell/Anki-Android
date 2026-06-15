@@ -4,7 +4,7 @@
 | --- | --- |
 | **Priority** | 🟡 Should |
 | **Milestone** | M2 |
-| **Status** | Backlog |
+| **Status** | **Done** — verified on device; on branch `feature/aied-13-model-picker` |
 | **Depends on** | [AIED-12](AIED-12-api-integration.md) (OpenRouter call), [AIED-02](AIED-02-api-key-storage.md) (settings home) |
 | **Effort** | M |
 
@@ -31,16 +31,37 @@ model the AI rewrite uses, without rebuilding the app.
 - Graceful handling when the list can't be loaded (offline / no key): fall back to the stored/default model
   and let the user still type a model id manually.
 
+- **Grouping/sorting:** models are grouped under provider section headers (providers A→Z), and within each
+  provider listed cheapest-first (by prompt+completion per 1M tokens; models without pricing last).
+
 **Out (later, if wanted):**
 - Per-preset or per-prompt model overrides; temperature/max_tokens controls.
-- Sorting/filtering/search over the (large) catalogue beyond a basic list.
-- Caching strategy beyond a simple in-memory/short-lived cache.
+- Free-text search/filter over the (large) catalogue.
+- Caching strategy beyond a simple per-open fetch.
 
 ## Acceptance criteria
 
-- [ ] The model list is fetched from OpenRouter and each entry shows its **id/name and pricing** (prompt + completion).
-- [ ] Selecting a model persists it; AI rewrites use the selected model.
-- [ ] With nothing selected, or if the fetch fails, the default model is used (no crash) and a manual entry is still possible.
+- [x] The model list is fetched from OpenRouter and each entry shows its **id/name and pricing** (prompt + completion).
+- [x] Selecting a model persists it; AI rewrites use the selected model (read fresh per call).
+- [x] With nothing selected, or if the fetch fails, the default model is used (no crash) and a manual entry is still possible.
+- [x] Models are grouped by provider (alphabetical) with section headers, cheapest-first within each provider.
+
+## Implementation details (done)
+
+- `noteeditor/ai/OpenRouterModelCatalog.kt` — `suspend fun fetchModels()` (`GET /api/v1/models` on `Dispatchers.IO`,
+  optional `Authorization` header), `OpenRouterModel(id, name, prompt/completion USD per token, contextLength)`
+  with `promptPerMillion`/`completionPerMillion`, `provider`, and `sortCost`. Pure `parseModels(json)` (org.json)
+  + `toDisplayRows(models)` building `ModelCatalogRow.ProviderHeader`/`ModelEntry` grouped + sorted. Reuses the
+  rewriter's exception types.
+- `ai/OpenRouterModelStore.kt` — `getSelectedModel()`/`setSelectedModel()` in plain default prefs.
+- `OpenRouterNoteEditorRewriter` — `model` constructor param replaced with `modelProvider: () -> String`
+  (read fresh per call); `DEFAULT_MODEL` made public.
+- `NoteEditorFragment` — builds the rewriter with `modelProvider = { modelStore.getSelectedModel() ?: DEFAULT_MODEL }`.
+- `preferences/AdvancedSettingsFragment.kt` — "AI model" preference → `withProgress { fetchModels() }` → an
+  `AlertDialog` backed by `ModelRowAdapter` (custom `ArrayAdapter`, headers non-selectable, two-line model rows
+  with pricing + ✓ on the current model), a neutral "Enter manually" dialog, and a fetch-failure fallback.
+- Resources: `open_router_model_preference_key`, AI-model strings, preference entry in `preferences_advanced.xml`.
+- Tests: `OpenRouterModelCatalogTest` (parsing, HTTP error, missing pricing, and grouping/sorting). Passing.
 
 ## Technical notes
 

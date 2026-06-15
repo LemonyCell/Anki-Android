@@ -100,6 +100,33 @@ class OpenRouterModelCatalogTest {
             assertTrue(thrown.message!!.contains("boom"))
         }
 
+    @Test
+    fun toDisplayRowsGroupsByProviderAlphabeticallyThenCheapestFirst() {
+        val models =
+            listOf(
+                model("openai/gpt-4o", prompt = 0.0000025, completion = 0.00001),
+                model("anthropic/claude-opus", prompt = 0.000015, completion = 0.000075),
+                model("anthropic/claude-haiku", prompt = 0.0000008, completion = 0.000004),
+                model("anthropic/claude-free", prompt = null, completion = null),
+            )
+
+        val rows = OpenRouterModelCatalog.toDisplayRows(models)
+
+        // anthropic section first (alphabetical), then openai
+        assertEquals(ModelCatalogRow.ProviderHeader("anthropic"), rows[0])
+        assertEquals("anthropic/claude-haiku", (rows[1] as ModelCatalogRow.ModelEntry).model.id) // cheapest
+        assertEquals("anthropic/claude-opus", (rows[2] as ModelCatalogRow.ModelEntry).model.id)
+        assertEquals("anthropic/claude-free", (rows[3] as ModelCatalogRow.ModelEntry).model.id) // no pricing -> last
+        assertEquals(ModelCatalogRow.ProviderHeader("openai"), rows[4])
+        assertEquals("openai/gpt-4o", (rows[5] as ModelCatalogRow.ModelEntry).model.id)
+    }
+
+    private fun model(
+        id: String,
+        prompt: Double?,
+        completion: Double?,
+    ) = OpenRouterModel(id = id, name = id, promptUsdPerToken = prompt, completionUsdPerToken = completion, contextLength = null)
+
     private fun clientReturning(
         code: Int,
         body: String,

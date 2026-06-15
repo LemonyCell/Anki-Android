@@ -31,7 +31,7 @@ Status: ✅ done · 🔶 partial · ⬜ backlog
 | [AIED-03](AIED-03-preset-prompts.md) | Reusable prompt presets from history | ✅ done (core) | Must | M1 | AIED-01 | M |
 | [AIED-06](AIED-06-split-card.md) | Split a card into two | ⬜ backlog | Should | M2 | AIED-01, AIED-04 | L |
 | [AIED-07](AIED-07-fact-check-mcp.md) | Fact-check via Microsoft Learn MCP | ⬜ backlog | Should | M2 | AIED-01 | L |
-| [AIED-13](AIED-13-model-picker.md) | Model picker (fetch models + pricing) | ⬜ backlog | Should | M2 | AIED-12 | M |
+| [AIED-13](AIED-13-model-picker.md) | Model picker (fetch models + pricing) | ✅ done | Should | M2 | AIED-12 | M |
 | [AIED-08](AIED-08-conversation-history.md) | Local AI conversation history | 🔶 backend done; UI pending | Could | M3 | AIED-01 | M |
 | [AIED-09](AIED-09-prompt-autosuggest.md) | Prompt auto-suggest from usage patterns | ⬜ backlog | Could | M3 | AIED-08 | L |
 | [AIED-10](AIED-10-pin-presets.md) | Pin presets to the top | ⬜ backlog | P3 / low | M3+ | AIED-03 | S |
@@ -54,6 +54,10 @@ Effort key (T-shirt): **S** ≈ < 1 day, **M** ≈ 1–3 days, **L** ≈ ≥ 1 w
   Added local prompt preset persistence with timestamped history, deduplicated visible presets,
   usage metrics (`usageCount`, `lastUsedAt`), soft-delete/un-hide behavior, and prompt request-builder concatenation logic in
   `PromptPresetStore` + `PromptPresetRequestBuilder` with test coverage.
+- **[AIED-13](AIED-13-model-picker.md)** — ✅ done. Advanced-settings model picker that fetches the OpenRouter
+  catalogue with pricing (`OpenRouterModelCatalog`), grouped by provider (A→Z) and cheapest-first within each,
+  persisted via `OpenRouterModelStore`; rewriter reads the model fresh per call (`modelProvider`). Manual-entry
+  + offline fallback. Unit-tested parsing/grouping.
 
 ## Suggested sequencing
 

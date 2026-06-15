@@ -44,9 +44,28 @@ data class OpenRouterModel(
     val completionPerMillion: Double?
         get() = completionUsdPerToken?.let { it * TOKENS_PER_MILLION }
 
+    /** The OpenRouter provider prefix, e.g. `anthropic` for `anthropic/claude-sonnet-4`. */
+    val provider: String
+        get() = id.substringBefore('/', missingDelimiterValue = id)
+
+    /** Combined per-1M price used to order models cheapest-first; models without pricing sort last. */
+    val sortCost: Double
+        get() = listOfNotNull(promptPerMillion, completionPerMillion).let { if (it.isEmpty()) Double.POSITIVE_INFINITY else it.sum() }
+
     companion object {
         private const val TOKENS_PER_MILLION = 1_000_000
     }
+}
+
+/** A row in the model picker list: either a provider section header or a selectable model. */
+sealed interface ModelCatalogRow {
+    data class ProviderHeader(
+        val provider: String,
+    ) : ModelCatalogRow
+
+    data class ModelEntry(
+        val model: OpenRouterModel,
+    ) : ModelCatalogRow
 }
 
 /**
@@ -90,6 +109,23 @@ class OpenRouterModelCatalog(
 
     companion object {
         private const val MODELS_URL = "https://openrouter.ai/api/v1/models"
+
+        /**
+         * Groups [models] into picker rows: a provider header per provider (alphabetical, case-insensitive),
+         * with that provider's models listed cheapest-first.
+         */
+        fun toDisplayRows(models: List<OpenRouterModel>): List<ModelCatalogRow> =
+            models
+                .groupBy { it.provider }
+                .toSortedMap(String.CASE_INSENSITIVE_ORDER)
+                .flatMap { (provider, providerModels) ->
+                    buildList {
+                        add(ModelCatalogRow.ProviderHeader(provider))
+                        providerModels
+                            .sortedWith(compareBy({ it.sortCost }, { it.id }))
+                            .forEach { add(ModelCatalogRow.ModelEntry(it)) }
+                    }
+                }
 
         internal fun parseModels(responseBody: String): List<OpenRouterModel> {
             try {

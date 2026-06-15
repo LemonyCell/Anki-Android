@@ -18,9 +18,14 @@ package com.ichi2.anki.preferences
 import android.content.ComponentName
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Typeface
 import android.text.InputType
 import android.text.method.PasswordTransformationMethod
+import android.view.View
+import android.view.ViewGroup
+import android.widget.ArrayAdapter
 import android.widget.EditText
+import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.preference.EditTextPreference
 import androidx.preference.Preference
@@ -35,6 +40,7 @@ import com.ichi2.anki.ai.OpenRouterModelStore
 import com.ichi2.anki.compat.CompatHelper
 import com.ichi2.anki.exception.StorageAccessException
 import com.ichi2.anki.launchCatchingTask
+import com.ichi2.anki.noteeditor.ai.ModelCatalogRow
 import com.ichi2.anki.noteeditor.ai.NoteEditorRewriteException
 import com.ichi2.anki.noteeditor.ai.OpenRouterModel
 import com.ichi2.anki.noteeditor.ai.OpenRouterModelCatalog
@@ -238,15 +244,17 @@ class AdvancedSettingsFragment : SettingsFragment() {
                 showManualModelEntry(modelStore, preference)
                 return@launchCatchingTask
             }
-            val current = modelSummary(modelStore)
-            val labels = models.map { modelLabel(it) }.toTypedArray()
-            val checked = models.indexOfFirst { it.id == current }
+            val rows = OpenRouterModelCatalog.toDisplayRows(models)
+            val adapter = ModelRowAdapter(rows, currentModelId = modelSummary(modelStore))
             AlertDialog.Builder(requireContext()).show {
                 setTitle(R.string.ai_model_title)
-                setSingleChoiceItems(labels, checked) { dialog, which ->
-                    modelStore.setSelectedModel(models[which].id)
-                    preference.summary = modelSummary(modelStore)
-                    showSnackbar(getString(R.string.ai_model_selected, models[which].id))
+                setAdapter(adapter) { dialog, which ->
+                    val row = rows[which]
+                    if (row is ModelCatalogRow.ModelEntry) {
+                        modelStore.setSelectedModel(row.model.id)
+                        preference.summary = modelSummary(modelStore)
+                        showSnackbar(getString(R.string.ai_model_selected, row.model.id))
+                    }
                     dialog.dismiss()
                 }
                 setNeutralButton(R.string.ai_model_enter_manually) { _, _ ->
@@ -255,6 +263,47 @@ class AdvancedSettingsFragment : SettingsFragment() {
                 setNegativeButton(R.string.dialog_cancel, null)
             }
         }
+    }
+
+    /** List adapter for the model picker: non-selectable provider headers + two-line model rows with pricing. */
+    private inner class ModelRowAdapter(
+        private val rows: List<ModelCatalogRow>,
+        private val currentModelId: String,
+    ) : ArrayAdapter<ModelCatalogRow>(requireContext(), 0, rows) {
+        override fun getViewTypeCount(): Int = 2
+
+        override fun getItemViewType(position: Int): Int = if (rows[position] is ModelCatalogRow.ProviderHeader) 0 else 1
+
+        override fun areAllItemsEnabled(): Boolean = false
+
+        override fun isEnabled(position: Int): Boolean = rows[position] is ModelCatalogRow.ModelEntry
+
+        override fun getView(
+            position: Int,
+            convertView: View?,
+            parent: ViewGroup,
+        ): View =
+            when (val row = rows[position]) {
+                is ModelCatalogRow.ProviderHeader -> {
+                    val view =
+                        convertView ?: layoutInflater.inflate(android.R.layout.simple_list_item_1, parent, false)
+                    view.findViewById<TextView>(android.R.id.text1).apply {
+                        text = row.provider
+                        setTypeface(typeface, Typeface.BOLD)
+                        isEnabled = false
+                    }
+                    view
+                }
+                is ModelCatalogRow.ModelEntry -> {
+                    val view =
+                        convertView ?: layoutInflater.inflate(android.R.layout.simple_list_item_2, parent, false)
+                    val current = row.model.id == currentModelId
+                    view.findViewById<TextView>(android.R.id.text1).text =
+                        if (current) "${row.model.name}  ✓" else row.model.name
+                    view.findViewById<TextView>(android.R.id.text2).text = modelPrice(row.model)
+                    view
+                }
+            }
     }
 
     private fun showManualModelEntry(
@@ -278,16 +327,14 @@ class AdvancedSettingsFragment : SettingsFragment() {
         }
     }
 
-    private fun modelLabel(model: OpenRouterModel): String {
+    private fun modelPrice(model: OpenRouterModel): String {
         val prompt = model.promptPerMillion
         val completion = model.completionPerMillion
-        val price =
-            if (prompt != null && completion != null) {
-                getString(R.string.ai_model_price_format, prompt, completion)
-            } else {
-                getString(R.string.ai_model_price_unknown)
-            }
-        return "${model.name}\n$price"
+        return if (prompt != null && completion != null) {
+            getString(R.string.ai_model_price_format, prompt, completion)
+        } else {
+            getString(R.string.ai_model_price_unknown)
+        }
     }
 
     private fun removeUnnecessaryAdvancedPrefs() {
