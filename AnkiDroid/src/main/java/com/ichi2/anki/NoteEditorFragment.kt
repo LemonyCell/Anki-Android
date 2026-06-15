@@ -147,6 +147,11 @@ import com.ichi2.anki.noteeditor.NoteEditorUndoViewModel
 import com.ichi2.anki.noteeditor.Toolbar
 import com.ichi2.anki.noteeditor.Toolbar.TextFormatListener
 import com.ichi2.anki.noteeditor.Toolbar.TextWrapper
+import com.ichi2.anki.noteeditor.ai.AiRewriteBottomSheet
+import com.ichi2.anki.noteeditor.ai.MockNoteEditorRewriter
+import com.ichi2.anki.noteeditor.ai.NoteEditorAiViewModel
+import com.ichi2.anki.noteeditor.ai.NoteEditorRewriteApplier
+import com.ichi2.anki.noteeditor.ai.NoteEditorRewriter
 import com.ichi2.anki.observability.undoableOp
 import com.ichi2.anki.pages.ImageOcclusion
 import com.ichi2.anki.pages.viewmodel.ImageOcclusionArgs
@@ -279,6 +284,19 @@ class NoteEditorFragment :
 
     /** Pending debounced snapshot jobs, keyed by field ord, so each field debounces independently. */
     private val snapshotJobs = mutableMapOf<Int, Job>()
+
+    /** AI editing panel (AIED-01). Shared with [AiRewriteBottomSheet] so Apply requests reach the editor. */
+    private val aiViewModel: NoteEditorAiViewModel by activityViewModels()
+
+    /** The rewrite backend. A mock for now (AIED-01); AIED-12 swaps in the real OpenRouter rewriter. */
+    private val noteRewriter: NoteEditorRewriter = MockNoteEditorRewriter()
+
+    /** Target captured when the AI panel is opened (focus is lost once the sheet shows). */
+    private var aiTargetOrd = 0
+    private var aiSelStart = 0
+    private var aiSelEnd = 0
+    private var aiHasSelection = false
+    private var aiActionJob: Job? = null
 
     private var currentImageOccPath: String? = null
 
@@ -1522,6 +1540,7 @@ class NoteEditorFragment :
                 }
             }
         }
+        menu.findItem(R.id.action_ai_rewrite).isEnabled = editFields != null
         menu.findItem(R.id.action_undo_field).isEnabled = undoViewModel.canUndo(lastFocusedFieldOrd)
         menu.findItem(R.id.action_redo_field).isEnabled = undoViewModel.canRedo(lastFocusedFieldOrd)
         menu.findItem(R.id.action_show_toolbar).isChecked =
@@ -1577,6 +1596,11 @@ class NoteEditorFragment :
                 if (allowSaveAction()) {
                     launchCatchingTask { saveNote() }
                 }
+                return true
+            }
+            R.id.action_ai_rewrite -> {
+                Timber.i("NoteEditor:: AI rewrite button pressed")
+                openAiPanel()
                 return true
             }
             R.id.action_undo_field -> {
@@ -2916,6 +2940,56 @@ class NoteEditorFragment :
             isRestoringHistory = false
         }
         activity?.invalidateOptionsMenu()
+    }
+
+    /**
+     * Opens the AI editing panel (AIED-01). Captures the target field and selection now, because showing
+     * the bottom sheet moves focus away. When nothing is selected, the whole field is the target.
+     */
+    private fun openAiPanel() {
+        val field = (requireActivity().currentFocus as? FieldEditText) ?: editFields?.getOrNull(lastFocusedFieldOrd)
+        if (field == null) return
+        aiTargetOrd = field.ord
+        val start = field.selectionStart
+        val end = field.selectionEnd
+        aiHasSelection = start != end
+        if (aiHasSelection) {
+            aiSelStart = minOf(start, end)
+            aiSelEnd = maxOf(start, end)
+        } else {
+            aiSelStart = 0
+            aiSelEnd = field.text?.length ?: 0
+        }
+
+        aiActionJob?.cancel()
+        aiActionJob =
+            lifecycleScope.launch {
+                aiViewModel.applyRequested.first { instruction ->
+                    applyAiRewrite(instruction)
+                    true
+                }
+            }
+        AiRewriteBottomSheet.newInstance(aiHasSelection).show(parentFragmentManager, AiRewriteBottomSheet.TAG)
+    }
+
+    /**
+     * Runs the rewrite over the captured target (selection or whole field) and writes the result back,
+     * snapshotting before and after so the change is a single undo step (AIED-05 hooks).
+     */
+    private fun applyAiRewrite(instruction: String) {
+        val ord = aiTargetOrd
+        val field = editFields?.getOrNull(ord) ?: return
+        val fullText = field.text?.toString() ?: ""
+        val input = fullText.substring(aiSelStart.coerceIn(0, fullText.length), aiSelEnd.coerceIn(0, fullText.length))
+        launchCatchingTask {
+            captureFieldSnapshot(ord)
+            val result = noteRewriter.rewrite(input, instruction)
+            val rewrite = NoteEditorRewriteApplier.compose(fullText, aiSelStart, aiSelEnd, result)
+            setFieldValueFromUi(ord, rewrite.text)
+            field.requestFocus()
+            field.setSelection(rewrite.caret.coerceIn(0, field.text?.length ?: 0))
+            captureFieldSnapshot(ord)
+        }
     }
 
     @VisibleForTesting(otherwise = VisibleForTesting.NONE)

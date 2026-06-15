@@ -8,6 +8,11 @@
         ankidroid:showAsAction="always"
         android:visible="true"/>
     <item
+        android:id="@+id/action_ai_rewrite"
+        android:icon="@drawable/ic_lightbulb_stars"
+        android:title="@string/ai_rewrite"
+        ankidroid:showAsAction="always"/>
+    <item
         android:id="@+id/action_undo_field"
         android:icon="@drawable/ic_undo_white"
         android:title="@string/undo"

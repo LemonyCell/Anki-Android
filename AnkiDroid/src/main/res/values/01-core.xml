@@ -222,4 +222,12 @@
 
     <!-- Multiple profile -->
     <string name="add_profile">Add profile</string>
+
+    <!-- AI note editor (AIED-01) -->
+    <string name="ai_rewrite" comment="Note editor menu item that opens the AI editing panel.">AI</string>
+    <string name="ai_rewrite_title">AI rewrite</string>
+    <string name="ai_rewrite_prompt_hint">Describe what to change…</string>
+    <string name="ai_rewrite_apply">Apply</string>
+    <string name="ai_rewrite_editing_selection">Editing the selected text</string>
+    <string name="ai_rewrite_editing_field">Editing the whole field</string>
 </resources>

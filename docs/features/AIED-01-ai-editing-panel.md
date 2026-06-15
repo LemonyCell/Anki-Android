@@ -4,7 +4,7 @@
 | --- | --- |
 | **Priority** | 🔴 Must |
 | **Milestone** | M1 (MVP) |
-| **Status** | Backlog |
+| **Status** | **Done** — verified on device; on branch `feature/aied-01-ai-panel` |
 | **Depends on** | — (real AI call is [AIED-12](AIED-12-api-integration.md)) |
 | **Effort** | M |
 
@@ -42,11 +42,32 @@ with no network, no API key, and no cost. The real call replaces the mock in [AI
 - [ ] The mock is isolated behind one function/interface so AIED-12 can replace it without UI changes.
 - [ ] Existing AnkiDroid **Preview** renders the updated field correctly.
 
+## Implementation details (done)
+
+- `AnkiDroid/src/main/java/com/ichi2/anki/noteeditor/ai/`
+  - `MockNoteEditorRewriter.kt` — implements the existing `NoteEditorRewriter` seam; wraps input as `«input»` (visible + undoable). AIED-12 swaps this for the OpenRouter rewriter — **no UI change**.
+  - `NoteEditorRewriteApplier.kt` — pure `compose(fullText, start, end, replacement)` → new text + caret; normalises/clamps the range. Unit-tested.
+  - `NoteEditorAiViewModel.kt` — activity-scoped `MutableSharedFlow<String>` (`applyRequested`), mirroring `MultimediaViewModel`; carries the instruction from the sheet to the editor.
+  - `AiRewriteBottomSheet.kt` + `res/layout/fragment_bottomsheet_ai_rewrite.xml` — prompt field + Apply; shows scope label (selection vs whole field); **Apply disabled until the prompt is non-blank**.
+- `NoteEditorFragment.kt`
+  - `openAiPanel()` captures the target field `ord` + selection **before** showing the sheet (the sheet steals focus); whole field when nothing is selected.
+  - `applyAiRewrite()` runs in `launchCatchingTask`, calls the rewriter, writes back via `setFieldValueFromUi`, restores caret, and brackets the change with `captureFieldSnapshot` (AIED-05) so it's **one undo step**.
+- `res/menu/note_editor.xml` — **AI** app-bar icon (`ic_lightbulb_stars`), order Preview · AI · Undo · Redo · Save.
+- Strings in `res/values/01-core.xml`; tests `test/.../noteeditor/ai/NoteEditorRewriteApplierTest.kt`, `MockNoteEditorRewriterTest.kt` (passing).
+
+## Acceptance criteria status
+
+- [x] AI affordance opens the panel (app-bar icon).
+- [x] Selection captured/replaced when present; whole field otherwise.
+- [x] Apply runs the mock and updates the field (wrapped in `«…»`); Apply blocked on empty prompt.
+- [x] Mock isolated behind `NoteEditorRewriter` so AIED-12 swaps without UI changes.
+- [x] Existing Preview renders the updated field; change is a single Undo step.
+
 ## Technical notes
 
 Integration point: `NoteEditorFragment.kt`, `FieldEditText` (`setContent`, selection getters). The apply
-call should already run through `launchCatchingTask { … }` so AIED-12 only changes what happens inside the
-rewrite function (mock → OkHttp), not the call site. See
+call runs through `launchCatchingTask { … }` so AIED-12 only changes what happens inside the rewrite
+function (mock → OpenRouter), not the call site. See
 [`../ai-editor-technical-reference.md`](../ai-editor-technical-reference.md) §1–2.
 
 ## Open questions
