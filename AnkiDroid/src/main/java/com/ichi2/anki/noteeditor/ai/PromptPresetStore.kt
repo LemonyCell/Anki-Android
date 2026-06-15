@@ -69,6 +69,8 @@ class PromptPresetStore(
     fun getVisiblePresets(): List<PromptPreset> {
         val state = readState()
         val hidden = state.softDeletedNormalizedPrompts
+        val usageCounts = state.presetUsageCountByNormalizedPrompt
+        val lastUsedAt = state.presetLastUsedAtByNormalizedPrompt
         val latestByNormalizedPrompt = LinkedHashMap<String, PromptPreset>()
 
         state.submissions.asReversed().forEach { submission ->
@@ -83,10 +85,48 @@ class PromptPresetStore(
                 PromptPreset(
                     promptText = submission.promptText,
                     createdAt = submission.createdAt,
+                    usageCount = usageCounts[normalizedPrompt] ?: 0,
+                    lastUsedAt = lastUsedAt[normalizedPrompt],
                 )
         }
 
         return latestByNormalizedPrompt.values.toList()
+    }
+
+    /**
+     * Increments usage metrics for one preset prompt (frequency + last-used timestamp).
+     *
+     * @return `false` if [promptText] is blank or no matching preset exists in prompt history.
+     */
+    fun recordPresetUsage(
+        promptText: String,
+        usedAt: Long = TimeManager.time.intTimeMS(),
+    ): Boolean {
+        val normalizedPrompt = normalizePrompt(promptText)
+        if (normalizedPrompt.isEmpty()) {
+            Timber.d("Skipping usage record for blank AI preset")
+            return false
+        }
+
+        val previousState = readState()
+        val existsInHistory = previousState.submissions.any { normalizePrompt(it.promptText) == normalizedPrompt }
+        if (!existsInHistory) {
+            Timber.d("Skipping usage record for unknown AI preset")
+            return false
+        }
+
+        val updatedCounts = previousState.presetUsageCountByNormalizedPrompt.toMutableMap()
+        val updatedLastUsed = previousState.presetLastUsedAtByNormalizedPrompt.toMutableMap()
+        updatedCounts[normalizedPrompt] = (updatedCounts[normalizedPrompt] ?: 0) + 1
+        updatedLastUsed[normalizedPrompt] = usedAt
+
+        writeState(
+            previousState.copy(
+                presetUsageCountByNormalizedPrompt = updatedCounts,
+                presetLastUsedAtByNormalizedPrompt = updatedLastUsed,
+            ),
+        )
+        return true
     }
 
     /**
@@ -150,7 +190,9 @@ class PromptPresetStore(
         sharedPreferences.edit {
             if (state.submissions.isEmpty() &&
                 state.softDeletedNormalizedPrompts.isEmpty() &&
-                state.conversationHistory.isEmpty()
+                state.conversationHistory.isEmpty() &&
+                state.presetUsageCountByNormalizedPrompt.isEmpty() &&
+                state.presetLastUsedAtByNormalizedPrompt.isEmpty()
             ) {
                 remove(STORAGE_KEY)
             } else {
@@ -182,6 +224,8 @@ data class PromptSubmission(
 data class PromptPreset(
     val promptText: String,
     val createdAt: Long,
+    val usageCount: Int = 0,
+    val lastUsedAt: Long? = null,
 )
 
 @Serializable
@@ -227,4 +271,6 @@ private data class StoredPromptPresetState(
     val submissions: List<PromptSubmission> = emptyList(),
     val softDeletedNormalizedPrompts: Set<String> = emptySet(),
     val conversationHistory: List<AiConversationEntry> = emptyList(),
+    val presetUsageCountByNormalizedPrompt: Map<String, Int> = emptyMap(),
+    val presetLastUsedAtByNormalizedPrompt: Map<String, Long> = emptyMap(),
 )

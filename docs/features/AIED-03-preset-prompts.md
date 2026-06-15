@@ -56,6 +56,7 @@ Implemented in commit `e196b24d36`:
   - Added local prompt preset storage using `SharedPreferences` + JSON serialization.
   - Every submitted prompt is persisted with timestamp (`PromptSubmission(promptText, createdAt)`).
   - Display list logic is deduplicated by normalized text (`trim + collapse whitespace`) and excludes soft-deleted presets.
+  - Preset usage metrics are persisted by normalized prompt: `usageCount` and `lastUsedAt` via `recordPresetUsage(...)`.
   - Soft delete is implemented as hidden normalized keys; history entries are retained.
   - Re-submitting a soft-deleted prompt removes it from the soft-deleted set (un-hides it).
   - Added `PromptPresetRequestBuilder.buildEffectivePrompt(...)` to append checked presets to typed prompt using `\n\n` separators and dedupe checked presets by normalized text.
@@ -76,7 +77,7 @@ Implemented acceptance criteria:
 ## Technical notes
 
 - **Storage:** local DB/store (Room or DataStore) on-device; no card data leaves the device. Schema sketch:
-  `prompt_text`, `created_at` (date-time), `soft_deleted` (bool). Dedup key = normalized `prompt_text`
+  `prompt_text`, `created_at` (date-time), `soft_deleted` (bool), `usage_count` (int), `last_used_at` (date-time). Dedup key = normalized `prompt_text`
   (trim + collapse whitespace; decide case sensitivity — see open questions).
 - **Relationship to [AIED-08](AIED-08-conversation-history.md):** AIED-03 owns *prompt* persistence;
   AIED-08 may extend the same store with full input/output history. Keep one store, don't build two.

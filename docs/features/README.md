@@ -52,7 +52,7 @@ Effort key (T-shirt): **S** ≈ < 1 day, **M** ≈ 1–3 days, **L** ≈ ≥ 1 w
   missing-key snackbar → Settings, typed-error snackbars. Replaced the mock with no UI rework.
 - **[AIED-03](AIED-03-preset-prompts.md)** — ✅ done (functional core).
   Added local prompt preset persistence with timestamped history, deduplicated visible presets,
-  soft-delete/un-hide behavior, and prompt request-builder concatenation logic in
+  usage metrics (`usageCount`, `lastUsedAt`), soft-delete/un-hide behavior, and prompt request-builder concatenation logic in
   `PromptPresetStore` + `PromptPresetRequestBuilder` with test coverage.
 
 ## Suggested sequencing

@@ -143,6 +143,56 @@ class PromptPresetStoreTest : RobolectricTest() {
     }
 
     @Test
+    fun `recording preset usage increments count and updates last-used timestamp`() {
+        store.saveSubmittedPrompt("  Explain   this  ", createdAt = 100L)
+        store.saveSubmittedPrompt("Explain this", createdAt = 200L)
+
+        assertThat(store.recordPresetUsage("Explain this", usedAt = 1000L), equalTo(true))
+        assertThat(store.recordPresetUsage(" Explain   this ", usedAt = 2000L), equalTo(true))
+
+        assertThat(
+            store.getVisiblePresets(),
+            equalTo(
+                listOf(
+                    PromptPreset(
+                        promptText = "Explain this",
+                        createdAt = 200L,
+                        usageCount = 2,
+                        lastUsedAt = 2000L,
+                    ),
+                ),
+            ),
+        )
+
+        val reloadedStore = PromptPresetStore(sharedPreferences)
+        assertThat(
+            reloadedStore.getVisiblePresets(),
+            equalTo(
+                listOf(
+                    PromptPreset(
+                        promptText = "Explain this",
+                        createdAt = 200L,
+                        usageCount = 2,
+                        lastUsedAt = 2000L,
+                    ),
+                ),
+            ),
+        )
+    }
+
+    @Test
+    fun `recording preset usage rejects blank or unknown prompts`() {
+        store.saveSubmittedPrompt("Shorten this", createdAt = 100L)
+
+        assertThat(store.recordPresetUsage("   "), equalTo(false))
+        assertThat(store.recordPresetUsage("Unknown prompt"), equalTo(false))
+        assertThat(
+            store.getVisiblePresets(),
+            equalTo(listOf(PromptPreset(promptText = "Shorten this", createdAt = 100L))),
+        )
+    }
+
+    @Test
     fun `conversation entries are persisted`() {
         val entry =
             AiConversationEntry(
