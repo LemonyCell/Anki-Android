@@ -32,6 +32,7 @@ Status: ✅ done · 🔶 partial · ⬜ backlog
 | [AIED-06](AIED-06-split-card.md) | Split a card into two | ⬜ backlog | Should | M2 | AIED-01, AIED-04 | L |
 | [AIED-07](AIED-07-fact-check-mcp.md) | Fact-check via Microsoft Learn MCP | ⬜ backlog | Should | M2 | AIED-01 | L |
 | [AIED-13](AIED-13-model-picker.md) | Model picker (fetch models + pricing) | ✅ done | Should | M2 | AIED-12 | M |
+| [AIED-14](AIED-14-system-prompt-setting.md) | Versioned system prompts (switch / edit / revert) | ⬜ backlog | Should | M2 | AIED-12 | M |
 | [AIED-08](AIED-08-conversation-history.md) | Local AI conversation history | 🔶 backend done; UI pending | Could | M3 | AIED-01 | M |
 | [AIED-09](AIED-09-prompt-autosuggest.md) | Prompt auto-suggest from usage patterns | ⬜ backlog | Could | M3 | AIED-08 | L |
 | [AIED-10](AIED-10-pin-presets.md) | Pin presets to the top | ⬜ backlog | P3 / low | M3+ | AIED-03 | S |
