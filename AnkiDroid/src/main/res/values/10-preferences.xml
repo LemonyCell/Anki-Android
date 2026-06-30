@@ -192,7 +192,6 @@
     <string name="ai_system_prompt_activate">Activate</string>
     <string name="ai_system_prompt_edit">Edit</string>
     <string name="ai_system_prompt_duplicate">Duplicate</string>
-    <string name="ai_system_prompt_delete">Delete</string>
     <string name="ai_system_prompt_activated">Active system prompt: %s</string>
     <string name="custom_buttons" maxLength="41">App bar buttons</string>
     <string name="custom_buttons_summary">Customize which actions appear in the app bar</string>

@@ -49,7 +49,7 @@ be swapped without code changes.
 - The API key is read **fresh per call** from `OpenRouterApiKeyStore` (AIED-02), so setting it and retrying needs no rebuild.
 - **Missing-key UX:** `applyAiRewrite` checks `apiKeyStore.hasApiKey()` first; if absent it shows a snackbar with a **Settings** action that deep-links to `AdvancedSettingsFragment` (no crash dialog, field unchanged).
 - **Error UX:** `NoteEditorRewriteException` is caught and shown as a snackbar (no crash report); the field is left unchanged. Unexpected errors still go through `launchCatchingTask`.
-- New strings: `ai_rewrite_set_api_key`, `ai_rewrite_open_settings`, `ai_rewrite_failed`.
+- New strings: `ai_rewrite_set_api_key`, `ai_rewrite_failed`. The Settings snackbar action reuses the existing `settings` string.
 
 ## Acceptance criteria
 

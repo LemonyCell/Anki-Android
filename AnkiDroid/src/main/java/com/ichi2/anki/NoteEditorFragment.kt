@@ -3037,7 +3037,7 @@ class NoteEditorFragment :
     /** Tells the user an OpenRouter API key is required and offers to open the settings screen to set it. */
     private fun promptForApiKey() {
         showSnackbar(getString(R.string.ai_rewrite_set_api_key)) {
-            setAction(R.string.ai_rewrite_open_settings) {
+            setAction(R.string.settings) {
                 startActivity(PreferencesActivity.getIntent(requireContext(), AdvancedSettingsFragment::class))
             }
         }
