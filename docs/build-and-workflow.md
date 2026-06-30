@@ -31,46 +31,47 @@ sdk.dir=/home/viktor/Android/Sdk
 enable_coverage=false
 ```
 
-## Workflow — command chain
+## Workflow — helper scripts
 
-Run from `/home/viktor/Anki-Android` inside `anki-dev`. Typical change → ship loop:
+Two scripts in `tools/` wrap the common loop. Run them from `/home/viktor/Anki-Android` inside `anki-dev`.
+
+| Script | What it does | When |
+| --- | --- | --- |
+| `./tools/dev-build.sh` | `ktlintFormat` + `assembleFullDebug`, then prints the APK path | After a code change — quick "does it format + compile?" (no phone needed) |
+| `./tools/dev-push.sh [ip:port]` | `adb connect` (if `ip:port` given) + `installFullDebug` — Gradle auto-picks the device's ABI | Ship the build onto the phone |
+
+Typical change → ship loop:
 
 ```bash
-# 1. format Kotlin (auto-fix style)
-./gradlew ktlintFormat
-
-# 2. run the relevant unit tests (fast: one package, not all)
+# 1. (per feature) run the unit tests for the package you touched
 ./gradlew testFullDebugUnitTest --tests "com.ichi2.anki.noteeditor.ai.*"
 
-# 3. style gate (CI-equivalent check)
-./gradlew ktlintCheck
-
-# 4. compile the APK (full + debug flavor)
-./gradlew assembleFullDebug
+# 2. format + build the debug APK
+./tools/dev-build.sh
 #    → APK at AnkiDroid/build/outputs/apk/full/debug/
 
-# 5. connect the phone over Wi-Fi (port rotates; VPN must be OFF → LAN IP)
-adb connect <phone-ip>:<port>
-
-# 6. build + install onto the connected phone in one step
-ANDROID_SERIAL=<phone-ip>:<port> ./gradlew installFullDebug
+# 3. install onto the phone (VPN OFF → use the LAN 192.168.x.x:port from Wireless debugging)
+./tools/dev-push.sh 192.168.x.x:port   # first time this session: pass ip:port
+./tools/dev-push.sh                    # later: phone already connected
 ```
 
-Steps 1–4 are the "is it correct + clean" gate; 5–6 put it on the device. Day-to-day you often run just
-2 + 6 (test, then build-install).
+Tests stay a manual step on purpose — the `--tests` filter is per-feature, so it's not baked into the
+stupid build script. The scripts own format / build / install.
 
-### What each step does (brief)
+### What the scripts wrap (brief)
 
-- **ktlintFormat / ktlintCheck** — Kotlin style; format auto-fixes, check fails the build on violations.
-- **testFullDebugUnitTest** — JVM/Robolectric unit tests; `--tests "FQN"` limits scope (a single class or package).
+- **ktlintFormat** — auto-fixes Kotlin style (run inside `dev-build.sh`). The strict gate, **ktlintCheck**,
+  is what CI enforces; locally we just auto-format.
+- **testFullDebugUnitTest** — JVM/Robolectric unit tests; `--tests "FQN"` limits scope to one class or package.
 - **assembleFullDebug** — compiles the `full` flavor, `debug` build type → debuggable APK signed with the debug key.
-- **installFullDebug** — same build, then pushes to the device named by `ANDROID_SERIAL`.
+- **installFullDebug** — same build, then pushes to the device named by `ANDROID_SERIAL` (set by `dev-push.sh`).
 
 ## Device connection (wireless adb)
 
-The phone's Wireless-debugging port **rotates**, and a **VPN** makes it advertise an unreachable `10.x` IP.
-Use the **LAN `192.168.x.x:port`** from *Settings → Developer options → Wireless debugging*. If `adb connect`
-is refused, re-pair: `adb pair <ip>:<pairPort> <6-digit-code>` then `adb connect <ip>:<connectPort>`.
+`dev-push.sh <ip:port>` runs the `adb connect` for you. The phone's Wireless-debugging port **rotates**, and a
+**VPN** makes it advertise an unreachable `10.x` IP — use the **LAN `192.168.x.x:port`** from
+*Settings → Developer options → Wireless debugging*. If `adb connect` is refused (first-ever connect, or after
+the phone forgets the host), pair once first: `adb pair <ip>:<pairPort> <6-digit-code>`, then run `dev-push.sh`.
 
 ## Git remotes
 
