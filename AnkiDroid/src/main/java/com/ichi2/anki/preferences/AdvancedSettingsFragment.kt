@@ -426,7 +426,7 @@ class AdvancedSettingsFragment : SettingsFragment() {
                 getString(R.string.ai_system_prompt_activate),
                 getString(R.string.ai_system_prompt_edit),
                 getString(R.string.ai_system_prompt_duplicate),
-                getString(R.string.dialog_positive_delete),
+                getString(R.string.ai_system_prompt_delete),
             )
         AlertDialog.Builder(requireContext()).show {
             setTitle(version.name)
