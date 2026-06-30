@@ -33,12 +33,13 @@ enable_coverage=false
 
 ## Workflow — helper scripts
 
-Two scripts in `tools/` wrap the common loop. Run them from `/home/viktor/Anki-Android` inside `anki-dev`.
+Three scripts in `tools/` wrap the common loop. Run them from `/home/viktor/Anki-Android` inside `anki-dev`.
 
 | Script | What it does | When |
 | --- | --- | --- |
-| `./tools/dev-build.sh` | `ktlintFormat` + `assembleFullDebug`, then prints the APK path | After a code change — quick "does it format + compile?" (no phone needed) |
-| `./tools/dev-push.sh [ip:port]` | `adb connect` (if `ip:port` given) + `installFullDebug` — Gradle auto-picks the device's ABI | Ship the build onto the phone |
+| `./tools/verify.sh` | `ktlintFormat` + Kotlin type-check + release vital lint | The format + typecheck + lint gate; run before building/publishing |
+| `./tools/dev-build.sh` | runs `verify.sh`, then `assembleFullDebug`, prints the APK path | After a code change — verify + build (no phone needed) |
+| `./tools/push-to-android-phone.sh [ip:port]` | `adb connect` (if `ip:port` given) + `installFullDebug` — Gradle auto-picks the device's ABI | Ship the build onto the phone |
 
 Typical change → ship loop:
 
@@ -46,32 +47,34 @@ Typical change → ship loop:
 # 1. (per feature) run the unit tests for the package you touched
 ./gradlew testFullDebugUnitTest --tests "com.ichi2.anki.noteeditor.ai.*"
 
-# 2. format + build the debug APK
+# 2. verify (format + typecheck + lint) and build the debug APK
 ./tools/dev-build.sh
 #    → APK at AnkiDroid/build/outputs/apk/full/debug/
 
 # 3. install onto the phone (VPN OFF → use the LAN 192.168.x.x:port from Wireless debugging)
-./tools/dev-push.sh 192.168.x.x:port   # first time this session: pass ip:port
-./tools/dev-push.sh                    # later: phone already connected
+./tools/push-to-android-phone.sh 192.168.x.x:port   # first time this session: pass ip:port
+./tools/push-to-android-phone.sh                    # later: phone already connected
 ```
 
 Tests stay a manual step on purpose — the `--tests` filter is per-feature, so it's not baked into the
-stupid build script. The scripts own format / build / install.
+scripts. `verify.sh` owns format / typecheck / lint, `dev-build.sh` builds, `push-to-android-phone.sh` installs.
 
 ### What the scripts wrap (brief)
 
-- **ktlintFormat** — auto-fixes Kotlin style (run inside `dev-build.sh`). The strict gate, **ktlintCheck**,
-  is what CI enforces; locally we just auto-format.
+- **ktlintFormat** — auto-fixes Kotlin style (in `verify.sh`).
+- **compileFullDebugKotlin** — type-checks the code (in `verify.sh`).
+- **lintVitalFullRelease** — the fatal release lint that gates a release build (in `verify.sh`); running it
+  locally means a debug build catches what CI's release build would otherwise reject.
 - **testFullDebugUnitTest** — JVM/Robolectric unit tests; `--tests "FQN"` limits scope to one class or package.
 - **assembleFullDebug** — compiles the `full` flavor, `debug` build type → debuggable APK signed with the debug key.
-- **installFullDebug** — same build, then pushes to the device named by `ANDROID_SERIAL` (set by `dev-push.sh`).
+- **installFullDebug** — same build, then pushes to the device named by `ANDROID_SERIAL` (set by `push-to-android-phone.sh`).
 
 ## Device connection (wireless adb)
 
-`dev-push.sh <ip:port>` runs the `adb connect` for you. The phone's Wireless-debugging port **rotates**, and a
-**VPN** makes it advertise an unreachable `10.x` IP — use the **LAN `192.168.x.x:port`** from
+`push-to-android-phone.sh <ip:port>` runs the `adb connect` for you. The phone's Wireless-debugging port
+**rotates**, and a **VPN** makes it advertise an unreachable `10.x` IP — use the **LAN `192.168.x.x:port`** from
 *Settings → Developer options → Wireless debugging*. If `adb connect` is refused (first-ever connect, or after
-the phone forgets the host), pair once first: `adb pair <ip>:<pairPort> <6-digit-code>`, then run `dev-push.sh`.
+the phone forgets the host), pair once first: `adb pair <ip>:<pairPort> <6-digit-code>`, then run the script.
 
 ## Git remotes
 

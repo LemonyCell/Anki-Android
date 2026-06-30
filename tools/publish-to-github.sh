@@ -4,8 +4,8 @@
 #
 # The tag is ALWAYS auto-incremented. An optional label is appended when given.
 # Usage:
-#   ./tools/publish.sh             # -> viktor.<next>
-#   ./tools/publish.sh ai-editor   # -> viktor.<next>-ai-editor
+#   ./tools/publish-to-github.sh             # -> viktor.<next>
+#   ./tools/publish-to-github.sh ai-editor   # -> viktor.<next>-ai-editor
 set -euo pipefail
 cd /home/viktor/Anki-Android
 
